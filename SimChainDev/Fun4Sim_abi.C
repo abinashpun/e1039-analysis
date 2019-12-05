@@ -125,10 +125,10 @@ int Fun4Sim_abi(
   if(gen_gun) {
     PHG4ParticleGun *gun = new PHG4ParticleGun("GUN");
     gun->set_name("mu-");
-    //gun->set_vtx(0, 0, target_coil_pos_z);
-    //gun->set_mom(3, 3, 50);
-    //gun->set_vtx(30, 10, 590);
-    gun->enableVertexGen();
+    gun->set_vtx(0, 0, target_coil_pos_z);
+    gun->set_mom(3, 3, 50);
+    gun->set_vtx(30, 10, 590);
+    //gun->enableVertexGen();
     gun->set_mom(-0.3, 2, 50);
     gun->Print();
     se->registerSubsystem(gun);
@@ -139,16 +139,16 @@ int Fun4Sim_abi(
     PHG4SimpleEventGenerator *genp = new PHG4SimpleEventGenerator("MUP");
     //genp->set_seed(123);
     genp->add_particles("mu+", nmu);  // mu+,e+,proton,pi+,Upsilon
-    genp->enableVertexGen();
+    //genp->enableVertexGen();
 
 
-    // genp->set_vertex_distribution_function(PHG4SimpleEventGenerator::Uniform,
-    //     PHG4SimpleEventGenerator::Uniform,
-    //     PHG4SimpleEventGenerator::Uniform);
-    // genp->set_vertex_distribution_mean(0.0, 0.0, target_coil_pos_z);
-    // genp->set_vertex_distribution_width(0.0, 0.0, 0.0);
-    // genp->set_vertex_size_function(PHG4SimpleEventGenerator::Uniform);
-    // genp->set_vertex_size_parameters(0.0, 0.0);
+    genp->set_vertex_distribution_function(PHG4SimpleEventGenerator::Uniform,
+        PHG4SimpleEventGenerator::Uniform,
+        PHG4SimpleEventGenerator::Uniform);
+    genp->set_vertex_distribution_mean(0.0, 0.0, target_coil_pos_z);
+    genp->set_vertex_distribution_width(0.0, 0.0, 0.0);
+    genp->set_vertex_size_function(PHG4SimpleEventGenerator::Uniform);
+    genp->set_vertex_size_parameters(0.0, 0.0);
 
     if(FMAGSTR>0)
       //genp->set_pxpypz_range(0,6, -6,6, 10,100);
