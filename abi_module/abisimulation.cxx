@@ -80,17 +80,17 @@ int abisimulation::process_event(PHCompositeNode *topnode)
 {
   
 
-   // _dimuoninfo = findNode::getClass<SQDimuonTruthInfoContainer>(topnode, "DimuonInfo");
-   //  if (!_dimuoninfo) {
-   //    LogError("! _dimuon");
-   //    return Fun4AllReturnCodes::ABORTEVENT;
-   //  }
-   //  if(_dimuoninfo->get_Dimuon_xs()<=0)  return Fun4AllReturnCodes::ABORTEVENT;
+   _dimuoninfo = findNode::getClass<SQDimuonTruthInfoContainer>(topnode, "DimuonInfo");
+    if (!_dimuoninfo) {
+      LogError("! _dimuon");
+      return Fun4AllReturnCodes::ABORTEVENT;
+    }
+    if(_dimuoninfo->get_Dimuon_xs()<=0)  return Fun4AllReturnCodes::ABORTEVENT;
     
-   //  dimuon_xs = _dimuoninfo->get_Dimuon_xs();    
-   //  dimuon_CosThetaCS =_dimuoninfo->get_Dimuon_cosThetaCS() ;
-   //  dimuon_phiCS =_dimuoninfo->get_Dimuon_phiCS() ;	
-   //  dimuon_m =_dimuoninfo->get_Dimuon_m() ;
+    dimuon_xs = _dimuoninfo->get_Dimuon_xs();    
+    dimuon_CosThetaCS =_dimuoninfo->get_Dimuon_cosThetaCS() ;
+    dimuon_phiCS =_dimuoninfo->get_Dimuon_phiCS() ;	
+    dimuon_m =_dimuoninfo->get_Dimuon_m() ;
     // cout<<"Inside analysis module: dimuon cross section: "<<_dimuoninfo->get_Dimuon_xs()<<endl;
    // }
 
