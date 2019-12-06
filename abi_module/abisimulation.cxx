@@ -79,7 +79,7 @@ int abisimulation::InitRun(PHCompositeNode *topNode) {
 int abisimulation::process_event(PHCompositeNode *topnode)
 {
   
-
+  
    _dimuoninfo = findNode::getClass<SQDimuonTruthInfoContainer>(topnode, "DimuonInfo");
     if (!_dimuoninfo) {
       LogError("! _dimuon");
@@ -91,6 +91,8 @@ int abisimulation::process_event(PHCompositeNode *topnode)
     dimuon_CosThetaCS =_dimuoninfo->get_Dimuon_cosThetaCS() ;
     dimuon_phiCS =_dimuoninfo->get_Dimuon_phiCS() ;	
     dimuon_m =_dimuoninfo->get_Dimuon_m() ;
+    dimuon_pt =_dimuoninfo->get_Dimuon_pt();
+    dimuon_xf =  _dimuoninfo->get_Dimuon_xF();
     // cout<<"Inside analysis module: dimuon cross section: "<<_dimuoninfo->get_Dimuon_xs()<<endl;
    // }
 
@@ -130,9 +132,9 @@ int abisimulation::process_event(PHCompositeNode *topnode)
     suni++;
    
   
-    //Calculation and cross section calculation from scratch
+    //Calculation  from scratch
     //@@
-    /*
+    
     if (suni>1){ 
        if(truthpid[0]==truthpid[1]) continue;
       	TLorentzVector mup, mum;
@@ -163,19 +165,21 @@ int abisimulation::process_event(PHCompositeNode *topnode)
 	TVector3 bv_cms = p_cms.BoostVector();
 	p_sum.Boost(-bv_cms);
 
-	//fxF = 2.*p_sum.Pz()/sqrts/(1. - fMass*fMass/s);
+	double fxF = 2.*p_sum.Pz()/sqrts/(1. - fMass*fMass/s);
 	double fCosTh = 2.*(mum.E()*mup.Pz() - mup.E()*mum.Pz())/fMass/TMath::Sqrt(fMass*fMass + fpT*fpT);
 	double fPhi = TMath::ATan(2.*TMath::Sqrt(fMass*fMass + fpT*fpT)/fMass*(mum.Px()*mup.Py() - mup.Px()*mum.Py())/(mup.Px()*mup.Px() - mum.Px()*mum.Px() + mup.Py()*mup.Py() - mum.Py()*mum.Py()));
 
 
-	dimuon_CosThetaCS = fCosTh;
-	dimuon_phiCS = fPhi;
+	//dimuon_CosThetaCS = fCosTh;
+	//dimuon_phiCS = fPhi;
 	
-	dimuon_m = fMass;
+	//dimuon_m = fMass;
+	dimuon_pt = fpT;
+	dimuon_xf = fxF;
 	//	cout<<"Inside analysis module: dimuon, mass, phi, costheta: "<<fMass<<" "<<fPhi<<" "<<fCosTh<<endl;
 
   }
-    */
+    
     //@@
     
     }
@@ -217,6 +221,8 @@ void abisimulation::ResetVars()
   dimuon_phiCS = 0.;
   dimuon_xs = 1.;
   dimuon_m= 0.;
+  dimuon_pt = 0.;
+  dimuon_xf = 0.;
 }
 
 void abisimulation::InitTree()
@@ -234,6 +240,9 @@ void abisimulation::InitTree()
   truth_tree->Branch("dimuon_phiCS", &dimuon_phiCS, "dimuon_phiCS/F");
   truth_tree->Branch("dimuon_xs", &dimuon_xs, "dimuon_xs/F");
   truth_tree->Branch("dimuon_m", &dimuon_m, "dimuon_m/F");
+  truth_tree->Branch("dimuon_xf", &dimuon_xf, "dimuon_xf/F");
+  truth_tree->Branch("dimuon_pt", &dimuon_pt, "dimuon_pt/F");
+
 }
 
  int abisimulation::GetNodes(PHCompositeNode* topNode)
