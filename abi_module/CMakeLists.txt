@@ -32,9 +32,11 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++0x ${ROOT_CFLAGS}")
 set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -lphool -lg4testbench")
 add_library(abisimulation SHARED ${sources} ${dicts})
 
-#target_link_libraries(abisimulation -lgeom_svc -linterface_main -lfun4all -lphool /seaquest/users/apun/install/lib/libSQPrimaryGen.so)
+
+
+target_link_libraries(abisimulation -lgeom_svc -linterface_main -lfun4all -lphool /seaquest/users/apun/install/lib/libSQPrimaryGen.so)
 #add_dependencies(abisimulation SQPrimaryGen)
-target_link_libraries(abisimulation -lgeom_svc -linterface_main -lfun4all -lphool -L${ROOT_PREFIX}/lib)
+#target_link_libraries(abisimulation -lgeom_svc -linterface_main -lfun4all -lphool -L${ROOT_PREFIX}/lib)
 
 message(${CMAKE_PROJECT_NAME} " will be installed to " ${CMAKE_INSTALL_PREFIX})
 
