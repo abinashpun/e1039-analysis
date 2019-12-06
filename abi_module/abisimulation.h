@@ -61,7 +61,7 @@ class abisimulation : public SubsysReco
   /* int process_id; */
  
   //Vertex variable
-  float truth_vtxx[2],truth_vtxy[2],truth_vtxz[2], truthpx[2], truthpy[2], truthpz[2] ,dimuon_CosThetaCS,dimuon_phiCS,dimuon_xs, truthe[2],dimuon_m;
+  float truth_vtxx[2],truth_vtxy[2],truth_vtxz[2], truthpx[2], truthpy[2], truthpz[2] ,dimuon_CosThetaCS,dimuon_phiCS,dimuon_xs, truthe[2],dimuon_m, dimuon_xf, dimuon_pt;
   int truthpid[2];
 
 
