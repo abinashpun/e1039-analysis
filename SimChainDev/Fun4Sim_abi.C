@@ -166,14 +166,14 @@ int Fun4Sim_abi(
     PHG4SimpleEventGenerator *genm = new PHG4SimpleEventGenerator("MUP");
     //genm->set_seed(123);
     genm->add_particles("mu-", nmu);  // mu+,e+,proton,pi+,Upsilon
-    genm->enableVertexGen();
-    // genm->set_vertex_distribution_function(PHG4SimpleEventGenerator::Uniform,
-    //     PHG4SimpleEventGenerator::Uniform,
-    //     PHG4SimpleEventGenerator::Uniform);
-    // genm->set_vertex_distribution_mean(0.0, 0.0, target_coil_pos_z);
-    // genm->set_vertex_distribution_width(0.0, 0.0, 0.0);
-    // genm->set_vertex_size_function(PHG4SimpleEventGenerator::Uniform);
-    // genm->set_vertex_size_parameters(0.0, 0.0);
+    //genm->enableVertexGen();
+    genm->set_vertex_distribution_function(PHG4SimpleEventGenerator::Uniform,
+        PHG4SimpleEventGenerator::Uniform,
+        PHG4SimpleEventGenerator::Uniform);
+    genm->set_vertex_distribution_mean(0.0, 0.0, target_coil_pos_z);
+    genm->set_vertex_distribution_width(0.0, 0.0, 0.0);
+    genm->set_vertex_size_function(PHG4SimpleEventGenerator::Uniform);
+    genm->set_vertex_size_parameters(0.0, 0.0);
 
     if(FMAGSTR>0)
       //genm->set_pxpypz_range(-6,0, -6,6, 10,100);
