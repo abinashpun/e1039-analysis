@@ -15,12 +15,13 @@ R__LOAD_LIBRARY(libembedding)
 R__LOAD_LIBRARY(libevt_filter)
 R__LOAD_LIBRARY(libktracker)
 R__LOAD_LIBRARY(libmodule_example)
+R__LOAD_LIBRARY(libSQPrimaryGen)
 #endif
 
 using namespace std;
 
 int Fun4Sim(
-    const int nevent = 1
+    const int nevent = 10
     )
 {
   const double target_coil_pos_z = -300;
@@ -39,8 +40,11 @@ int Fun4Sim(
 
   const bool gen_pythia8  = false;
   const bool gen_gun      = false;
-  const bool gen_particle = true;
+  const bool gen_particle = false;
   const bool read_hepmc   = false;
+  const bool gen_e906legacy = true;
+
+  const bool vertex_gen = true;
 
   gSystem->Load("libfun4all");
   gSystem->Load("libg4detectors");
@@ -109,26 +113,38 @@ int Fun4Sim(
   if(gen_gun) {
     PHG4ParticleGun *gun = new PHG4ParticleGun("GUN");
     gun->set_name("mu-");
-    //gun->set_vtx(0, 0, target_coil_pos_z);
-    //gun->set_mom(3, 3, 50);
-    gun->set_vtx(30, 10, 590);
+    
+    if(vertex_gen){
+      gun->enableVertexGen(); //for legacy vertex generator
+    }
+    else{
+      //gun->set_vtx(0, 0, target_coil_pos_z);
+      gun->set_vtx(30, 10, 590);
+    }
     gun->set_mom(-0.3, 2, 50);
+    //gun->set_mom(3, 3, 50);
     se->registerSubsystem(gun);
   }
 
   // multi particle gun
   if(gen_particle) {
     PHG4SimpleEventGenerator *genp = new PHG4SimpleEventGenerator("MUP");
-    //genp->set_seed(123);
+    genp->set_seed(123);
     genp->add_particles("mu+", nmu);  // mu+,e+,proton,pi+,Upsilon
-    genp->set_vertex_distribution_function(PHG4SimpleEventGenerator::Uniform,
-        PHG4SimpleEventGenerator::Uniform,
-        PHG4SimpleEventGenerator::Uniform);
-    genp->set_vertex_distribution_mean(0.0, 0.0, target_coil_pos_z);
-    genp->set_vertex_distribution_width(0.0, 0.0, 0.0);
-    genp->set_vertex_size_function(PHG4SimpleEventGenerator::Uniform);
-    genp->set_vertex_size_parameters(0.0, 0.0);
-
+    
+    if(vertex_gen){
+      genp->enableVertexGen(); //for legacy vertex generator
+    }
+    else{
+      genp->set_vertex_distribution_function(PHG4SimpleEventGenerator::Uniform,
+					     PHG4SimpleEventGenerator::Uniform,
+					     PHG4SimpleEventGenerator::Uniform);
+      genp->set_vertex_distribution_mean(0.0, 0.0, target_coil_pos_z);
+      genp->set_vertex_distribution_width(0.0, 0.0, 0.0);
+      genp->set_vertex_size_function(PHG4SimpleEventGenerator::Uniform);
+      genp->set_vertex_size_parameters(0.0, 0.0);
+    }
+    
     if(FMAGSTR>0)
       //genp->set_pxpypz_range(0,6, -6,6, 10,100);
       genp->set_pxpypz_range(-3,6, -3,3, 10,100);
@@ -143,8 +159,13 @@ int Fun4Sim(
 
   if(gen_particle) {
     PHG4SimpleEventGenerator *genm = new PHG4SimpleEventGenerator("MUP");
-    //genm->set_seed(123);
+    genm->set_seed(123);
     genm->add_particles("mu-", nmu);  // mu+,e+,proton,pi+,Upsilon
+
+    if(vertex_gen){
+      genm->enableVertexGen(); //for legacy vertex generator
+    }
+    else{
     genm->set_vertex_distribution_function(PHG4SimpleEventGenerator::Uniform,
         PHG4SimpleEventGenerator::Uniform,
         PHG4SimpleEventGenerator::Uniform);
@@ -152,7 +173,8 @@ int Fun4Sim(
     genm->set_vertex_distribution_width(0.0, 0.0, 0.0);
     genm->set_vertex_size_function(PHG4SimpleEventGenerator::Uniform);
     genm->set_vertex_size_parameters(0.0, 0.0);
-
+    }
+    
     if(FMAGSTR>0)
       //genm->set_pxpypz_range(-6,0, -6,6, 10,100);
       genm->set_pxpypz_range(-6,3, -3,3, 10,100);
@@ -164,9 +186,22 @@ int Fun4Sim(
     se->registerSubsystem(genm);
   }
 
+
+ //legacy physics generators by Abinash
+  //@
+  if(gen_e906legacy){
+    SQPrimaryParticleGen *e1039Phys = new  SQPrimaryParticleGen();
+    //e1039Phys->enablePythia();
+    //e1039Phys->enableCustomDimuon();
+    e1039Phys->enableDrellYanGen();
+    se->registerSubsystem(e1039Phys);
+  }
+  //@
+
+
   // Fun4All G4 module
   PHG4Reco *g4Reco = new PHG4Reco();
-  //PHG4Reco::G4Seed(123);
+  PHG4Reco::G4Seed(123);
   //g4Reco->set_field(5.);
   g4Reco->set_field_map(
       jobopt_svc->m_fMagFile+" "+
