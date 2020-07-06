@@ -1,0 +1,268 @@
+#include <TStyle.h>
+#include <TTree.h>
+#include <TCanvas.h>
+#include <TH1D.h>
+#include <TLorentzVector.h>
+#include <iostream>
+#include <TFile.h>
+#include <TF1.h>
+#include "TEventList.h"
+#include <TH2F.h>
+#include <math.h>
+#include <TAxis.h>
+#include "TEventList.h"
+#include <iostream>
+#include <fstream>
+#include <sstream>
+#include <string>
+#include <cstring>
+#include <vector>
+#include <climits>
+#include <cfloat>
+#include <cmath>
+
+using namespace std;
+
+void st1_com(const char* infile = "trackQA.root"){
+
+
+  float mu_mass = .105658;
+
+  TFile *fup = new TFile(infile,"read");
+
+  TTree *Reco_eval = (TTree*) fup->Get("Reco");
+
+  //tree info
+  float gx_st1, gy_st1, gpx_st1, gpy_st1, gpz_st1,gnhits, gndc, ntruthhits;
+  float x_st1, y_st1, z_st1, px_st1, py_st1, pz_st1;
+  float rec_drift_st1, sq_drift_st1; 
+
+  int krecstat,pid, n_tracks, nhits;
+
+
+ 
+  Reco_eval->SetBranchAddress("pid", &pid);
+  Reco_eval->SetBranchAddress("n_tracks", &n_tracks);
+
+  
+  Reco_eval->SetBranchAddress("gx_st1", &gx_st1);
+  Reco_eval->SetBranchAddress("gy_st1", &gy_st1);
+ 
+  Reco_eval->SetBranchAddress("gpx_st1", &gpx_st1);
+  Reco_eval->SetBranchAddress("gpy_st1", &gpy_st1);
+  Reco_eval->SetBranchAddress("gpz_st1", &gpz_st1);
+
+  Reco_eval->SetBranchAddress("x_st1", &x_st1);
+  Reco_eval->SetBranchAddress("y_st1", &y_st1);
+
+  Reco_eval->SetBranchAddress("px_st1", &px_st1);
+  Reco_eval->SetBranchAddress("py_st1", &py_st1);
+  Reco_eval->SetBranchAddress("pz_st1", &pz_st1);
+
+  Reco_eval->SetBranchAddress("rec_drift_st1", &rec_drift_st1);
+  Reco_eval->SetBranchAddress("sq_drift_st1", &sq_drift_st1);
+
+  //some local variable
+  float reco_pt_st1, truth_pt_st1, reco_ptot_st1, truth_ptot_st1; 
+  float reco_e_st1, truth_e_st1;
+ 
+  //Histograms initializatins
+ 
+  TH1D *ddrift = new TH1D("ddrift","ddrift", 200, -.1, .1); 
+  TH1D *dE = new TH1D("dE","dE", 240, -.4, .4);//deltaE/E
+  TH1D *dP = new TH1D("dP","dP", 240, -.4, .4);//deltaP/P
+
+  TH2D *ddrift_p = new TH2D("ddrift_p","ddrift_p",140,5.,95.,200,-0.1,0.1);
+  TH2D *dE_E = new TH2D("dE_E","dE_E",180,0.,100.,100,-5,5.);
+  TH2D *dP_P = new TH2D("dP_P","dP_P",180,0.,100.,100,-5,5.);
+
+  for( Int_t i=1; i<Reco_eval->GetEntries(); i++) {
+
+    Reco_eval->GetEntry( i );
+   
+    //calculation of variables
+    truth_pt_st1 = sqrt(gpx_st1*gpx_st1+gpy_st1*gpy_st1);
+    reco_pt_st1 = sqrt(px_st1*px_st1+py_st1*py_st1);
+    truth_e_st1 =  sqrt(gpx_st1*gpx_st1 + gpy_st1*gpy_st1 + gpz_st1*gpz_st1 + mu_mass*mu_mass);
+    reco_e_st1 =  sqrt(px_st1*px_st1 + py_st1*py_st1 + pz_st1*pz_st1 + mu_mass*mu_mass);
+    reco_ptot_st1 = sqrt(px_st1*px_st1 + py_st1*py_st1 + pz_st1*pz_st1);
+    truth_ptot_st1 = sqrt(gpx_st1*gpx_st1 + gpy_st1*gpy_st1 + gpz_st1*gpz_st1);
+
+
+
+    //Fill the histograms
+    if(n_tracks==1) ddrift->Fill(rec_drift_st1-sq_drift_st1); 
+    if(n_tracks==1) dE->Fill((reco_e_st1-truth_e_st1)/truth_e_st1);
+    if(n_tracks==1) dP->Fill((reco_ptot_st1-truth_ptot_st1)/truth_ptot_st1); 
+
+    if(n_tracks==1) dE_E->Fill(truth_e_st1,(reco_e_st1-truth_e_st1));  
+    if(n_tracks==1) ddrift_p->Fill(truth_ptot_st1,rec_drift_st1-sq_drift_st1);  
+    if(n_tracks==1) dP_P->Fill(truth_ptot_st1,reco_ptot_st1-truth_ptot_st1); 
+
+  }
+
+  //fitting functions
+  TF1* gausfit=new TF1("gausfit","gaus",0,1000);
+  gStyle->SetOptFit();
+  double maxbin, center, maxx, minx;
+ 
+
+  //Draw the histograms
+  TCanvas *c1 = new TCanvas("c1","c1");
+  dP->Draw();
+  maxbin = dP->GetMaximumBin();
+  center = dP->GetBinCenter(maxbin);
+  maxx = center + 0.02;
+  minx = center - 0.02;
+  dP->Fit("gausfit","Q","",minx,maxx);
+  //c1->SetLogy();
+  c1->SaveAs("plots/dP.png");
+
+  TCanvas *c2 = new TCanvas("c2","c2");
+  maxbin = dE->GetMaximumBin();
+  center = dE->GetBinCenter(maxbin);
+  maxx = center + 0.02;
+  minx = center - 0.02;
+  dE->Draw();
+  //c2->SetLogy();
+  dE->Fit("gausfit","Q","",minx,maxx);
+  c2->SaveAs("plots/dE.png"); 
+
+
+  TCanvas *c3 = new TCanvas("c3","c3");
+  maxbin = ddrift->GetMaximumBin();
+  center = ddrift->GetBinCenter(maxbin);
+  maxx = center + 0.005;
+  minx = center - 0.005;
+  ddrift->Draw();
+  //ddrift->Fit("gausfit","Q","",minx,maxx);
+  c3->SetLogy();
+  c3->SaveAs("plots/ddrift.png");
+ 
+
+  //2D plots
+  TCanvas *c4 = new TCanvas("c4","c4");
+  dP_P->Draw("colz");
+  c4->SaveAs("plots/dP_P.png");
+
+  TCanvas *c5 = new TCanvas("c5","c5");
+  dE_E->Draw("colz");
+  c5->SaveAs("plots/dE_E.png");
+
+  TCanvas *c6 = new TCanvas("c6","c6");
+  ddrift_p->Draw("colz"); 
+  c6->SaveAs("plots/ddrift_p.png"); 
+
+
+
+
+  //=======projection work
+  TCanvas *c7= new TCanvas("c7","c7");
+  Double_t sigma2var[16];
+  Double_t sigma2var_err[16];
+  Double_t variable[16];
+  Double_t mean_diff_err[16];
+  Double_t mean_diff[16];
+  TH1D *projection[16];
+  char name[16];
+
+  
+  double suni;
+  TF1* res_fit =new TF1("res_fit", "[0]/sqrt(x)+[1]+[2]/x",5.,100.);  
+  c7->Divide(4,4);
+  for(int i=0;i<16; i++){
+
+    variable[i] = 5*i+10;
+    Int_t lowerbin = dP_P->GetXaxis()->FindBin(5*i+12.5);
+    Int_t upperbin = dP_P->GetXaxis()->FindBin(5*i+17.5);
+    sprintf(name,"%i<P<%i",5*i+12,5*i+17);
+    projection[i] = (TH1D*)dP_P->ProjectionY(name,lowerbin,upperbin,"");
+    c7->cd(i+1);
+    maxbin = projection[i]->GetMaximumBin();
+    center = projection[i]->GetBinCenter(maxbin);
+    
+    //choose the range of the gaussfit according to need
+    if(i<4) suni=.5;
+    else if (i<7) suni = 0.75;
+    else if( i<8) suni = 1.;
+    else if(i<12) suni = 1.5;
+    else suni =2.0;
+    
+    maxx = center + suni;
+    minx = center - suni;
+    projection[i]->Draw();
+    projection[i]->Fit("gausfit","Q",",",minx,maxx);
+    sigma2var[i]=gausfit->GetParameter(2)/variable[i];
+    sigma2var_err[i]=gausfit->GetParError(2)/variable[i];
+    mean_diff[i] = gausfit->GetParameter(1);
+    mean_diff_err[i] = gausfit->GetParError(1);    
+  }
+ 
+  TGraphErrors* sigma2p_p = new TGraphErrors(16,variable,sigma2var,0,sigma2var_err);
+  TCanvas *c8 = new TCanvas("c8","c8");
+  sigma2p_p->Draw("AP");
+  sigma2p_p->Fit("res_fit","Q","",5,90);
+  sigma2p_p->SetMaximum(0.024);
+  sigma2p_p->SetMinimum(0.011);
+  c8->SaveAs("plots/mom_reso.png");
+  
+
+
+  //Mean difference vs truth plot
+  TGraphErrors* dp_p = new TGraphErrors(16,variable,mean_diff,0,mean_diff_err);
+  TCanvas *c9 = new TCanvas("c9","c9");
+  dp_p->Draw("AP");
+  dp_p->SetMarkerStyle(8);
+  TLine * line = new TLine(4.,0,92.,0);
+  line->Draw("same");
+  line->SetLineStyle(9);
+  line->SetLineWidth(2);
+  dp_p->SetName("plots/deltap_p.png");
+
+
+
+  //
+  //===============Drift Distance ================================
+  //
+  //
+  TCanvas *cdrift= new TCanvas("cdrift","cdrift");
+
+  cdrift->Divide(4,4);
+  //double suni;
+   
+  for(int i=0;i<16; i++){
+
+    variable[i] = 5*i+10;
+    Int_t lowerbin = ddrift_p->GetXaxis()->FindBin(5*i+12.5);
+    Int_t upperbin = ddrift_p->GetXaxis()->FindBin(5*i+17.5);
+    sprintf(name,"%i<P<%i",5*i+12,5*i+17);
+    projection[i] = (TH1D*)ddrift_p->ProjectionY(name,lowerbin,upperbin,"");
+    cdrift->cd(i+1);
+    maxbin = projection[i]->GetMaximumBin();
+    center = projection[i]->GetBinCenter(maxbin);
+    
+    //choode the range to fit carefully 
+    suni=.02;
+     
+    maxx = center + suni;
+    minx = center - suni;
+    projection[i]->Draw();
+    projection[i]->Fit("gausfit","Q",",",minx,maxx);
+    sigma2var[i]= gausfit->GetParameter(2)*10000;//microm meter
+    sigma2var_err[i]=gausfit->GetParError(2)*10000;
+    cout<<"mean, sigma, variable: "<<gausfit->GetParameter(1)<<", "<< sigma2var[i]<<", "<<variable[i]<<endl;
+    mean_diff[i] = gausfit->GetParameter(1);
+    mean_diff_err[i] = gausfit->GetParError(1);    
+  }
+  
+  TGraphErrors* sigma2drift_p = new TGraphErrors(16,variable,sigma2var,0,sigma2var_err);
+  TCanvas *cres = new TCanvas("cres","cres");
+  sigma2drift_p->Draw("AP");
+
+  sigma2drift_p->Fit("res_fit","Q","",5,90);
+  sigma2drift_p->SetMaximum(78.0);
+  sigma2drift_p->SetMinimum(5.0);
+  cres->SaveAs("plots/drift_reso.png");
+  
+
+}
