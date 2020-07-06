@@ -1,3 +1,6 @@
+//Author: Abinash Pun (NMSU)
+//Plotting macro for track QA
+
 #include <TStyle.h>
 #include <TTree.h>
 #include <TCanvas.h>
