@@ -14,7 +14,7 @@ make install
 ```
 ### Running the analysis macro
 
-Load libana_trkqa.so in Fun4Sim macro in SimChainDev area and register the AnaTrkQA after the recontruction process as
+Load `libana_trkqa.so` in Fun4Sim macro in SimChainDev area and register the AnaTrkQA after the recontruction process as
 ```
 AnaTrkQA* trackQA = new AnaTrkQA();
 trackQA->set_hit_container_choice("Vector");
