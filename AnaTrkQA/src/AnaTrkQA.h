@@ -26,16 +26,18 @@
 #include <list>
 #include <map>
 
+class TVector3;
+class TLorentzVector;
 
 class SQRun;
 class SQSpillMap;
-
 class SQEvent;
 class SQHitMap;
 class SQHitVector;
+class SQHit;
 
 class PHG4TruthInfoContainer;
-
+class PHG4HitContainer;
 class SRecEvent;
 
 class GeomSvc;
@@ -81,11 +83,14 @@ class AnaTrkQA: public SubsysReco {
 
   int TruthEval(PHCompositeNode *topNode);
   int RecoEval(PHCompositeNode *topNode);
+  int RecoEvalv2(PHCompositeNode *topNode);
+  
+  bool FindHitAtStation(const int trk_id, const PHG4HitContainer* g4hc, TVector3* pos, TLorentzVector* mom);
+  bool FindSQHitAtStation(const int trk_id, const int Det_id, SQHitVector* sqhit_vector, TVector3* pos, SQHit* hit);
 
   std::string _hit_container_type;
 
   size_t _event;
-
   SQRun* _run_header;
   SQSpillMap * _spill_map;
 
@@ -94,12 +99,16 @@ class AnaTrkQA: public SubsysReco {
   SQHitVector *_hit_vector;
 
   PHG4TruthInfoContainer* _truth;
-
   SRecEvent* _recEvent;
+
+  PHG4HitContainer *g4hc_d1x;
+  PHG4HitContainer *g4hc_d3px;
+  PHG4HitContainer *g4hc_d3mx;
 
   std::string _out_name;
 	
   TTree* _tout_reco;
+  TTree* _qa_tree;
   TFile *file;
 
   int run_id;
@@ -124,9 +133,11 @@ class AnaTrkQA: public SubsysReco {
   float truth_pos[10000];
 
   int n_tracks;
+  int n_recTracks;
   int rec_id[1000];
   int par_id[1000];
   int pid[1000];
+
   float gvx[1000];
   float gvy[1000];
   float gvz[1000];
@@ -177,6 +188,7 @@ class AnaTrkQA: public SubsysReco {
   float px_st1[1000];
   float py_st1[1000];
   float pz_st1[1000];
+  float pull_state00[1000];
 
   int gelmid[1000][128];
 
