@@ -91,6 +91,7 @@ int AnaTrkQA::process_event(PHCompositeNode* topNode) {
 
   if(_recEvent) {    
     ret = RecoEval(topNode);
+    ret = RecoEvalv2(topNode);
     if (ret != Fun4AllReturnCodes::EVENT_OK) return ret;
   }
 
@@ -102,8 +103,8 @@ int AnaTrkQA::process_event(PHCompositeNode* topNode) {
 int AnaTrkQA::RecoEval(PHCompositeNode* topNode)
 {
   if(Verbosity() >= Fun4AllBase::VERBOSITY_A_LOT)
-  std::cout << "Entering AnaTrkQA::RecoEval: " << _event << std::endl;
-
+    std::cout << "Entering AnaTrkQA::RecoEval: " << _event << std::endl;
+ 
   ResetEvalVars();
 
   if(_spill_map) {
@@ -306,7 +307,7 @@ int AnaTrkQA::RecoEval(PHCompositeNode* topNode)
     chisq_st1[n_tracks] = recTrack.getChisq();
     prob_st1[n_tracks] = recTrack.getProb();                
     quality[n_tracks] = recTrack.getQuality(); 
-                           
+                     
     {   
       double tx, ty, tz;
       recTrack.getMomentumSt1(tx, ty, tz);
@@ -314,7 +315,7 @@ int AnaTrkQA::RecoEval(PHCompositeNode* topNode)
       py_st1[n_tracks] = ty;
       pz_st1[n_tracks] = tz;
  
-     double x, y;
+      double x, y;
       recTrack.getPositionSt1(x, y);		
       x_st1[n_tracks] = x;		
       y_st1[n_tracks] = y;
@@ -385,14 +386,18 @@ int AnaTrkQA::RecoEval(PHCompositeNode* topNode)
 	      if(det_id==1){
 		sq_decID[n_tracks]=hit->get_detector_id();
 		sq_pos_st1[n_tracks]=hit->get_pos();
+		
 		sq_drift_st1[n_tracks] = hit->get_drift_distance();
+               
 		rec_drift_st1[n_tracks] = p_geomSvc->getDCA(hit->get_detector_id(), hit->get_element_id(),  px_st1[n_tracks]/pz_st1[n_tracks], py_st1[n_tracks]/pz_st1[n_tracks], x00, y00);
+		
 	      }
 
 	      gpx_st1[n_tracks] = g4hit->get_px(0)/1.;
 	      gpy_st1[n_tracks] = g4hit->get_py(0)/1.;
 	      gpz_st1[n_tracks] = g4hit->get_pz(0)/1.;
-                                                      
+                       
+                                        
 
 	      break;
 	    }
@@ -424,7 +429,184 @@ int AnaTrkQA::RecoEval(PHCompositeNode* topNode)
   return Fun4AllReturnCodes::EVENT_OK;
 }
 
+//play ground for Abi========================
+int AnaTrkQA::RecoEvalv2(PHCompositeNode* topNode)
+{
+  ResetEvalVars();
+	
+  if(_truth) {
+    for(auto iter=_truth->GetPrimaryParticleRange().first;
+	iter!=_truth->GetPrimaryParticleRange().second;
+	++iter) {
+      PHG4Particle * par = iter->second;
+		
+		
+      int trk_id = par->get_track_id();
 
+      pid[n_tracks] = par->get_pid();
+      int vtx_id =  par->get_vtx_id();
+		
+      PHG4VtxPoint* vtx = _truth->GetVtx(vtx_id);
+      gvx[n_tracks] = vtx->get_x();
+      gvy[n_tracks] = vtx->get_y();
+      gvz[n_tracks] = vtx->get_z();
+
+      TVector3 mom_truth(par->get_px(), par->get_py(), par->get_pz());
+      gpx[n_tracks] = par->get_px();
+      gpy[n_tracks] = par->get_py();
+      gpz[n_tracks] = par->get_pz();
+      gpt[n_tracks] = mom_truth.Pt();
+      geta[n_tracks] = mom_truth.Eta();
+      gphi[n_tracks] = mom_truth.Phi();
+
+
+      //st1. true hit info
+      TVector3 g_pos_st1;
+      TLorentzVector g_mom_st1;
+      int st1_hit = FindHitAtStation(trk_id, g4hc_d1x, &g_pos_st1, &g_mom_st1);
+		
+      gx_st1[n_tracks]  = g_pos_st1.X();
+      gy_st1[n_tracks]  = g_pos_st1.Y();
+      gz_st1[n_tracks]  = g_pos_st1.Z();
+     		
+      gpx_st1[n_tracks] = g_mom_st1.Px();
+      gpy_st1[n_tracks] = g_mom_st1.Py();
+      gpz_st1[n_tracks] = g_mom_st1.Pz();
+
+      //st3. trute hit info (work in progress: get it from either d3pXp or d3mXp)
+      TVector3 g_pos_st3;
+      TLorentzVector g_mom_st3;
+      int d3phit = FindHitAtStation(trk_id, g4hc_d3px, &g_pos_st3, &g_mom_st3);
+      int d3mhit = FindHitAtStation(trk_id, g4hc_d3mx, &g_pos_st3, &g_mom_st3);
+      //create branches to put st3. g4hit info
+                 
+
+
+
+      //=================SQ Hit information for st1. and st3.
+      SQHit *sqhit_st1 = NULL; //just incase need for later on
+      SQHit *sqhit_st3 = NULL;
+      // Get the sqhit position at st1. , st3 and drift distances
+      if(_hit_vector) {
+	for(int ihit=0; ihit<_hit_vector->size(); ++ihit) {
+	  SQHit *hit = _hit_vector->at(ihit);                    
+
+	  //st. 1
+	  if(hit->get_track_id() == trk_id && hit->get_detector_id() == 1) {
+	    sqhit_st1 = hit;
+     
+	    sqx_st1[n_tracks] = hit->get_truth_x();
+	    sqy_st1[n_tracks] = hit->get_truth_y();
+	    sqz_st1[n_tracks] = hit->get_truth_z();
+	    sq_pos_st1[n_tracks]=hit->get_pos();
+	    sq_drift_st1[n_tracks] = hit->get_drift_distance();
+	  }
+		
+	  //st. 3
+	  if(hit->get_track_id() == trk_id && (hit->get_detector_id() == 27/*D3mXp*/||hit->get_detector_id() == 21/*D3pXp*/)){
+	    sqhit_st3 = hit;
+	    //create branch to store st.3 sqhit information
+	  }
+			
+	}
+      }
+
+
+           
+      //====Find best reco track in terms of momentum======
+ 
+      float deltaP = 100.;
+      float hold_deltaP = 9999.;
+            
+      SRecTrack* Best_recTrack = NULL;
+      n_recTracks = _recEvent->getNTracks();
+      //Loop over the SRecTracks
+      for(int itrack=0; itrack<_recEvent->getNTracks(); ++itrack){
+			
+	if (hold_deltaP>deltaP) hold_deltaP = deltaP;
+
+	SRecTrack* recTrack = &_recEvent->getTrack(itrack);
+
+	deltaP = fabs(mom_truth.Mag()- recTrack->getMomentumVertex().Mag());
+	//Finding out best match track in terms of energy
+	if(deltaP-hold_deltaP<0.) Best_recTrack = recTrack;
+			
+      }//reco track loop
+
+      //===========================Now fill all info from Best Reco track 
+
+      if (Best_recTrack){
+	TVector3 rec_mom = Best_recTrack->getTargetMom();
+	cout<<" reco momentum Px,Py,Pz: "<<rec_mom.Px()<<", "<<rec_mom.Py()<<", "<<rec_mom.Pz()<<endl;
+	nhits[n_tracks] = Best_recTrack->getNHits();
+	charge[n_tracks] = Best_recTrack->getCharge();
+	TVector3 rec_vtx = Best_recTrack->getTargetPos();
+ 
+	vx[n_tracks]  = rec_vtx.X();
+	vy[n_tracks]  = rec_vtx.Y();
+	vz[n_tracks]  = rec_vtx.Z();
+    		
+	px[n_tracks]  = rec_mom.Px();
+	py[n_tracks]  = rec_mom.Py();
+	pz[n_tracks]  = rec_mom.Pz();
+	pt[n_tracks]  = rec_mom.Pt();
+	eta[n_tracks] = rec_mom.Eta();
+	phi[n_tracks] = rec_mom.Phi();
+    
+	chisq_st1[n_tracks] = Best_recTrack->getChisq();
+	prob_st1[n_tracks] = Best_recTrack->getProb();                
+	quality[n_tracks] = Best_recTrack->getQuality(); 
+
+
+		
+	//st. 1 reco values   
+	double tx, ty, tz;
+	Best_recTrack->getMomentumSt1(tx, ty, tz);
+	px_st1[n_tracks] = tx;
+	py_st1[n_tracks] = ty;
+	pz_st1[n_tracks] = tz;
+	cout<<" In station 1, pz: "<<pz_st1[n_tracks]<<endl;
+
+	double x, y;
+	Best_recTrack->getPositionSt1(x, y);		
+	x_st1[n_tracks] = x;		
+	y_st1[n_tracks] = y;
+
+	// Pull distribution work 
+	double state_vec00_st1  = Best_recTrack->getStateVector(0)[0][0];
+	double cov00_st1 = Best_recTrack->getCovariance(0)[0][0];
+	double true_mom_st1 = sqrt(gpx_st1[n_tracks]*gpx_st1[n_tracks]+gpy_st1[n_tracks]*gpy_st1[n_tracks]+gpz_st1[n_tracks]*gpz_st1[n_tracks]);
+	pull_state00[n_tracks] = (fabs(state_vec00_st1) - 1./true_mom_st1)/sqrt(cov00_st1); 
+	//work for other state vectors too
+
+
+	//calculating drift distance for reco track
+	if(sqhit_st1 ) {
+	
+	  double x00 = x_st1[n_tracks]-px_st1[n_tracks]/pz_st1[n_tracks] *sqhit_st1->get_truth_z();
+	  double y00 = y_st1[n_tracks]-py_st1[n_tracks]/pz_st1[n_tracks] *sqhit_st1->get_truth_z();
+
+	  rec_drift_st1[n_tracks] = p_geomSvc->getDCA(sqhit_st1->get_detector_id(), sqhit_st1->get_element_id(),  px_st1[n_tracks]/pz_st1[n_tracks], py_st1[n_tracks]/pz_st1[n_tracks], x00, y00);
+	  cout<<" x00: "<<x00<<" reco drift: "<<rec_drift_st1[n_tracks]<<endl;
+
+	}    
+      }//if best track
+	 
+      ++n_tracks;
+      if(n_tracks>=1000) break;
+             
+    }//truth loop
+	
+
+  }//truth condition
+ 
+  _qa_tree->Fill();
+
+
+  return Fun4AllReturnCodes::EVENT_OK;
+}
+
+//===========================
 int AnaTrkQA::End(PHCompositeNode* topNode) {
   if(Verbosity() >= Fun4AllBase::VERBOSITY_A_LOT)
     std::cout << "AnaTrkQA::End" << std::endl;
@@ -432,7 +614,7 @@ int AnaTrkQA::End(PHCompositeNode* topNode) {
   PHTFileServer::get().cd(_out_name.c_str());
 
   _tout_reco->Write();
-
+  _qa_tree->Write();
   
   return Fun4AllReturnCodes::EVENT_OK;
 }
@@ -440,6 +622,7 @@ int AnaTrkQA::End(PHCompositeNode* topNode) {
 int AnaTrkQA::InitEvalTree() {
  
   PHTFileServer::get().open(_out_name.c_str(), "RECREATE");
+
 
   _tout_reco = new TTree("Reco", "Reco Eval");
 
@@ -500,6 +683,72 @@ int AnaTrkQA::InitEvalTree() {
   _tout_reco->Branch("px_st1",        px_st1,              "px_st1[n_tracks]/F");
   _tout_reco->Branch("py_st1",        py_st1,              "py_st1[n_tracks]/F");
   _tout_reco->Branch("pz_st1",        pz_st1,              "pz_st1[n_tracks]/F");
+
+
+
+  // For the QA tree======================
+  _qa_tree = new TTree("QA_ana", "QA analsysis of reconstruction and simulation");
+
+  _qa_tree->Branch("krecstat",      &krecstat,           "krecstat/I");
+  _qa_tree->Branch("n_tracks",      &n_tracks,           "n_tracks/I");
+  _qa_tree->Branch("n_recTracks",   &n_recTracks,        "n_recTracks/I");
+  _qa_tree->Branch("par_id",        par_id,              "par_id[n_tracks]/I");
+  _qa_tree->Branch("rec_id",        rec_id,              "rec_id[n_tracks]/I");
+  _qa_tree->Branch("pid",           pid,                 "pid[n_tracks]/I");
+  _qa_tree->Branch("gvx",           gvx,                 "gvx[n_tracks]/F");
+  _qa_tree->Branch("gvy",           gvy,                 "gvy[n_tracks]/F");
+  _qa_tree->Branch("gvz",           gvz,                 "gvz[n_tracks]/F");
+  _qa_tree->Branch("gpx",           gpx,                 "gpx[n_tracks]/F");
+  _qa_tree->Branch("gpy",           gpy,                 "gpy[n_tracks]/F");
+  _qa_tree->Branch("gpz",           gpz,                 "gpz[n_tracks]/F");
+  _qa_tree->Branch("gpt",           gpt,                 "gpt[n_tracks]/F");
+  _qa_tree->Branch("geta",          geta,                "geta[n_tracks]/F");
+  _qa_tree->Branch("gphi",          gphi,                "gphi[n_tracks]/F");
+  _qa_tree->Branch("gx_st1",        gx_st1,              "gx_st1[n_tracks]/F");
+  _qa_tree->Branch("gy_st1",        gy_st1,              "gy_st1[n_tracks]/F");
+  _qa_tree->Branch("gz_st1",        gz_st1,              "gz_st1[n_tracks]/F");
+  _qa_tree->Branch("gpx_st1",       gpx_st1,             "gpx_st1[n_tracks]/F");
+  _qa_tree->Branch("gpy_st1",       gpy_st1,             "gpy_st1[n_tracks]/F");
+  _qa_tree->Branch("gpz_st1",       gpz_st1,             "gpz_st1[n_tracks]/F");
+  _qa_tree->Branch("gnhits",        gnhits,              "gnhits[n_tracks]/I");
+  _qa_tree->Branch("gndc",          gndc,                "gndc[n_tracks]/I");
+  _qa_tree->Branch("gnhodo",        gnhodo,              "gnhodo[n_tracks]/I");
+  _qa_tree->Branch("gnprop",        gnprop,              "gnprop[n_tracks]/I");
+  _qa_tree->Branch("gndp",          gndp,                "gndp[n_tracks]/I");
+ 
+  _qa_tree->Branch("sq_pos_st1",      sq_pos_st1,         "sq_pos_st1[n_tracks]/F");
+  _qa_tree->Branch("sq_drift_st1",    sq_drift_st1,       "sq_drift_st1[n_tracks]/F");
+  _qa_tree->Branch("sq_decID",        sq_decID,           "sq_decID[n_tracks]/F");
+  _qa_tree->Branch("rec_drift_st1",   rec_drift_st1,      "rec_drift_st1[n_tracks]/F"); 
+  _qa_tree->Branch("sqx_st1",        sqx_st1,              "sqx_st1[n_tracks]/F");
+  _qa_tree->Branch("sqy_st1",        sqy_st1,              "sqy_st1[n_tracks]/F");
+  _qa_tree->Branch("sqz_st1",        sqz_st1,              "sqz_st1[n_tracks]/F");
+  _qa_tree->Branch("chisq_st1",      chisq_st1,            "chisq_st1[n_tracks]/F");
+  _qa_tree->Branch("prob_st1",       prob_st1,             "prob_st1[n_tracks]/F");
+  _qa_tree->Branch("quality",        quality,             "quality[n_tracks]/F");
+
+
+  //_qa_tree->Branch("gelmid",        gelmid,              "gelmid[n_tracks][128]/I");
+
+  _qa_tree->Branch("ntruhits",      ntruhits,            "ntruhits[n_tracks]/I");
+  _qa_tree->Branch("nhits",         nhits,               "nhits[n_tracks]/I");
+  _qa_tree->Branch("charge",        charge,              "charge[n_tracks]/I");
+  _qa_tree->Branch("vx",            vx,                  "vx[n_tracks]/F");
+  _qa_tree->Branch("vy",            vy,                  "vy[n_tracks]/F");
+  _qa_tree->Branch("vz",            vz,                  "vz[n_tracks]/F");
+  _qa_tree->Branch("px",            px,                  "px[n_tracks]/F");
+  _qa_tree->Branch("py",            py,                  "py[n_tracks]/F");
+  _qa_tree->Branch("pz",            pz,                  "pz[n_tracks]/F");
+  _qa_tree->Branch("pt",            pt,                  "pt[n_tracks]/F");
+  _qa_tree->Branch("eta",           eta,                 "eta[n_tracks]/F");
+  _qa_tree->Branch("phi",           phi,                 "phi[n_tracks]/F");
+  _qa_tree->Branch("x_st1",         x_st1,               "x_st1[n_tracks]/F");
+  _qa_tree->Branch("y_st1",         y_st1,               "y_st1[n_tracks]/F");
+  _qa_tree->Branch("px_st1",        px_st1,              "px_st1[n_tracks]/F");
+  _qa_tree->Branch("py_st1",        py_st1,              "py_st1[n_tracks]/F");
+  _qa_tree->Branch("pz_st1",        pz_st1,              "pz_st1[n_tracks]/F");
+
+  _qa_tree->Branch("pull_state00",   pull_state00,       "pull_state00[n_tracks]/F");
 
   return 0;
 }
@@ -627,12 +876,38 @@ int AnaTrkQA::GetNodes(PHCompositeNode* topNode) {
     //return Fun4AllReturnCodes::ABORTEVENT;
   }
 
+
+  //Abi Add
+ 
+  g4hc_d1x  = findNode::getClass<PHG4HitContainer      >(topNode, "G4HIT_D1X");
+  g4hc_d3px = findNode::getClass<PHG4HitContainer      >(topNode, "G4HIT_D3pXp");
+  g4hc_d3mx = findNode::getClass<PHG4HitContainer      >(topNode, "G4HIT_D3mXp");
+  if (! g4hc_d1x) g4hc_d1x = findNode::getClass<PHG4HitContainer>(topNode, "G4HIT_D0X");
+
+  if ( !g4hc_d1x || !g4hc_d3px || !g4hc_d3mx) {
+    cout << "Failed at getting nodes: "<< g4hc_d1x << " " << g4hc_d3px << " " << g4hc_d3mx << endl;
+    return Fun4AllReturnCodes::ABORTEVENT;
+  }
+
+
   return Fun4AllReturnCodes::EVENT_OK;
 }
 
 
-
-
-
+//Adapted from Kenichi's truth node maker's function
+bool AnaTrkQA::FindHitAtStation(const int trk_id, const PHG4HitContainer* g4hc, TVector3* pos, TLorentzVector* mom)
+{
+  const double M_MU = 0.1056583745; // GeV
+  PHG4HitContainer::ConstRange range = g4hc->getHits();
+  for (PHG4HitContainer::ConstIterator it = range.first; it != range.second; it++) {
+    PHG4Hit* hit = it->second;
+    if (hit->get_trkid() == trk_id) {
+      pos->SetXYZ (hit->get_x(0)     , hit->get_y(0)     , hit->get_z(0)           );
+      mom->SetXYZM(hit->get_px(0),     hit->get_py(0),     hit->get_pz(0), M_MU);
+      return true;
+    }
+  }
+  return false;
+}
 
 
