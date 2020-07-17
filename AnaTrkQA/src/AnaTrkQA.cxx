@@ -90,7 +90,7 @@ int AnaTrkQA::process_event(PHCompositeNode* topNode) {
   int ret = Fun4AllReturnCodes::ABORTRUN;
 
   if(_recEvent) {    
-    ret = RecoEval(topNode);
+    //ret = RecoEval(topNode);
     ret = RecoEvalv2(topNode);
     if (ret != Fun4AllReturnCodes::EVENT_OK) return ret;
   }
@@ -100,336 +100,8 @@ int AnaTrkQA::process_event(PHCompositeNode* topNode) {
   return ret;
 }
 
-int AnaTrkQA::RecoEval(PHCompositeNode* topNode)
-{
-  if(Verbosity() >= Fun4AllBase::VERBOSITY_A_LOT)
-    std::cout << "Entering AnaTrkQA::RecoEval: " << _event << std::endl;
- 
-  ResetEvalVars();
 
-  if(_spill_map) {
-    auto spill_info = _spill_map->get(spill_id);
-    if(spill_info) {
-      target_pos = spill_info->get_target_pos();
-    } else {
-      LogWarning("");
-    }
-  }
-
-  if(_event_header) {
-    event_id    = _event_header->get_event_id();
-    emu_trigger = _event_header->get_trigger();
-    spill_id    = _event_header->get_spill_id();
-    run_id      = _event_header->get_run_id();
-  }
-
-  PHG4HitContainer *D1X_hits = findNode::getClass<PHG4HitContainer>(topNode, "G4HIT_D0X");
-  if (!D1X_hits)
-    D1X_hits = findNode::getClass<PHG4HitContainer>(topNode, "G4HIT_D1X");
-
-  if (!D1X_hits)
-    {
-      if(Verbosity() >= Fun4AllBase::VERBOSITY_A_LOT)
-        cout << Name() << " Could not locate g4 hit node " << "G4HIT_D0X or G4HIT_D1X" << endl;
-    }
-
-  std::map<int, int> parID_nhits_dc;
-  std::map<int, int> parID_nhits_hodo;
-  std::map<int, int> parID_nhits_prop;
-  std::map<int, int> parID_nhits_dp;
-
-  std::map<int, std::map<int, int> > parID_detid_elmid;
-
-  typedef std::tuple<int, int> ParDetPair;
-  std::map<ParDetPair, int> parID_detID_ihit;
-
-  std::map<int, int> hitID_ihit;
-
-  // If using vector, index it first
-  if(_hit_vector) {
-    for(int ihit=0; ihit<_hit_vector->size(); ++ihit) {
-      SQHit *hit = _hit_vector->at(ihit);
-      int hitID = hit->get_hit_id();
-      hitID_ihit[hitID]      = ihit;
-
-      if(_truth) {
-      	int track_id = hit->get_track_id();
-      	int det_id = hit->get_detector_id();
-      	parID_detID_ihit[std::make_tuple(track_id, det_id)] = ihit;
-
-      	if(hit->get_detector_id() >= 1 and hit->get_detector_id() <=30) {
-	  if(parID_nhits_dc.find(track_id)!=parID_nhits_dc.end())
-	    parID_nhits_dc[track_id] = parID_nhits_dc[track_id]+1;
-	  else
-	    parID_nhits_dc[track_id] = 1;
-      	}
-      	if(hit->get_detector_id() >= 31 and hit->get_detector_id() <=46) {
-	  if(parID_nhits_hodo.find(track_id)!=parID_nhits_hodo.end())
-	    parID_nhits_hodo[track_id] = parID_nhits_hodo[track_id]+1;
-	  else
-	    parID_nhits_hodo[track_id] = 1;
-      	}
-      	if(hit->get_detector_id() >= 47 and hit->get_detector_id() <=54) {
-	  if(parID_nhits_prop.find(track_id)!=parID_nhits_prop.end())
-	    parID_nhits_prop[track_id] = parID_nhits_prop[track_id]+1;
-	  else
-	    parID_nhits_prop[track_id] = 1;
-      	}
-      	if(hit->get_detector_id() >= 55 and hit->get_detector_id() <=62) {
-	  if(parID_nhits_dp.find(track_id)!=parID_nhits_dp.end())
-	    parID_nhits_dp[track_id] = parID_nhits_dp[track_id]+1;
-	  else
-	    parID_nhits_dp[track_id] = 1;
-      	}
-      }
-    }
-  }
-
-  typedef std::tuple<int, int> ParRecoPair;
-  std::map<ParRecoPair, int> parID_recID_nHit;
-
-  typedef std::tuple<int, int> TrkIDNHit;
-  std::map<int, TrkIDNHit> parID_bestRecID;
-  std::map<int, TrkIDNHit> recID_bestParID;
-
-  if(!_recEvent) {
-    LogInfo("!_recEvent");
-    return Fun4AllReturnCodes::ABORTRUN;
-  }
-
-  if(!_truth) {
-    LogInfo("!_truth");
-    return Fun4AllReturnCodes::ABORTRUN;
-  }
-
-  krecstat = _recEvent->getRecStatus();
-
-  for(int itrack=0; itrack<_recEvent->getNTracks(); ++itrack){
-    SRecTrack recTrack = _recEvent->getTrack(itrack);
-
-    if(Verbosity() >= Fun4AllBase::VERBOSITY_A_LOT) {
-      cout << "--------- itrack: " << itrack << " ---------"<< endl;
-    }
-
-    // Fill map parID_recID => nHit
-    for(int ihit=0; ihit<recTrack.getNHits();++ihit) {
-      int hitID = recTrack.getHitIndex(ihit);
-
-      if(Verbosity() >= Fun4AllBase::VERBOSITY_MORE) {
-	LogDebug("hitID: " << hitID);
-      }
-
-      // signed hitID to hitID
-      hitID = abs(hitID);
-
-      //! TODO change back to map?
-      if(hitID_ihit.find(hitID)==hitID_ihit.end()) continue;
-
-      SQHit *hit = _hit_vector->at(hitID_ihit[hitID]);
-
-      if(!hit) {
-	if(Verbosity() >= Fun4AllBase::VERBOSITY_MORE) {
-	  LogWarning("!hit");
-	}
-      }
-
-                         
-      // TODO better way to exclude hodo and prop hits?
-      // this is try to exclude hodo and prop hits
-      if(hit->get_detector_id() > 30) continue;  	
-                       
-      int parID = hit->get_track_id();
-      //LogInfo(parID);
-      if(parID > 9999) continue;
-      //LogInfo(parID);
-
-      ParRecoPair key = std::make_tuple(parID, itrack);
-
-      if(parID_recID_nHit.find(key)!=parID_recID_nHit.end())
-	parID_recID_nHit[key] = parID_recID_nHit[key]+1;
-      else
-	parID_recID_nHit[key] = 1;
-    }
-  }
-
-  for(auto iter=parID_recID_nHit.begin();
-      iter!=parID_recID_nHit.end(); ++iter) {
-    int parID = std::get<0>(iter->first);
-    int recID = std::get<1>(iter->first);
-    int nHit  = iter->second;
-
-    if(Verbosity() >= Fun4AllBase::VERBOSITY_A_LOT) {
-      LogInfo("");
-      std::cout
-	<< parID << " : " << recID
-	<< " => " << nHit
-	<< std::endl;
-    }
-
-    if(parID_bestRecID.find(parID)!=parID_bestRecID.end()) {
-      int nHit_current_best  = std::get<1>(parID_bestRecID[parID]);
-      if (nHit > nHit_current_best)
-	parID_bestRecID[parID] = std::make_tuple(recID, nHit);
-    }
-    else
-      parID_bestRecID[parID] = std::make_tuple(recID, nHit);
-
-    if(recID_bestParID.find(recID)!=recID_bestParID.end()) {
-      int nHit_current_best  = std::get<1>(recID_bestParID[recID]);
-      if (nHit > nHit_current_best)
-	recID_bestParID[recID] = std::make_tuple(parID, nHit);
-    }
-    else
-      recID_bestParID[recID] = std::make_tuple(parID, nHit);
-  }
-
-  // Fill Reco Tree
-  for(int itrack=0; itrack<_recEvent->getNTracks(); ++itrack){
-    SRecTrack recTrack = _recEvent->getTrack(itrack);
-
-    if(Verbosity() >= Fun4AllBase::VERBOSITY_A_LOT) {
-      cout << "--------- itrack: " << itrack << " ---------"<< endl;
-    }
-
-    nhits[n_tracks] = recTrack.getNHits();
-    charge[n_tracks] = recTrack.getCharge();
-    TVector3 rec_vtx = recTrack.getTargetPos();
-    vx[n_tracks]  = rec_vtx.X();
-    vy[n_tracks]  = rec_vtx.Y();
-    vz[n_tracks]  = rec_vtx.Z();
-    TVector3 rec_mom = recTrack.getTargetMom();
-    px[n_tracks]  = rec_mom.Px();
-    py[n_tracks]  = rec_mom.Py();
-    pz[n_tracks]  = rec_mom.Pz();
-    pt[n_tracks]  = rec_mom.Pt();
-    eta[n_tracks] = rec_mom.Eta();
-    phi[n_tracks] = rec_mom.Phi();
-    chisq_st1[n_tracks] = recTrack.getChisq();
-    prob_st1[n_tracks] = recTrack.getProb();                
-    quality[n_tracks] = recTrack.getQuality(); 
-                     
-    {   
-      double tx, ty, tz;
-      recTrack.getMomentumSt1(tx, ty, tz);
-      px_st1[n_tracks] = tx;
-      py_st1[n_tracks] = ty;
-      pz_st1[n_tracks] = tz;
- 
-      double x, y;
-      recTrack.getPositionSt1(x, y);		
-      x_st1[n_tracks] = x;		
-      y_st1[n_tracks] = y;
-
-    }
-
-    int trackID = itrack;
-
-    rec_id[n_tracks] = trackID;
-
-    if(recID_bestParID.find(trackID)!=recID_bestParID.end()) {
-      ntruhits[n_tracks] = std::get<1>(recID_bestParID[trackID]);
-      int parID = std::get<0>(recID_bestParID[trackID]);
-
-      PHG4Particle * par = _truth->GetParticle(parID);
-
-      par_id[n_tracks] = parID;
-
-      pid[n_tracks] = par->get_pid();
-
-      int vtx_id =  par->get_vtx_id();
-      PHG4VtxPoint* vtx = _truth->GetVtx(vtx_id);
-      gvx[n_tracks] = vtx->get_x();
-      gvy[n_tracks] = vtx->get_y();
-      gvz[n_tracks] = vtx->get_z();
-
-      TVector3 mom(par->get_px(), par->get_py(), par->get_pz());
-      gpx[n_tracks] = par->get_px();
-      gpy[n_tracks] = par->get_py();
-      gpz[n_tracks] = par->get_pz();
-      gpt[n_tracks] = mom.Pt();
-      geta[n_tracks] = mom.Eta();
-      gphi[n_tracks] = mom.Phi();
-
-      // trackID + detID -> SQHit -> PHG4Hit -> momentum
-      for(int det_id=1; det_id<=12; ++det_id) {
-	auto iter = parID_detID_ihit.find(std::make_tuple(parID, det_id));
-	if(iter != parID_detID_ihit.end()) {
-	  if(verbosity >= Fun4AllBase::VERBOSITY_A_LOT) {
-	    LogDebug("ihit: " << iter->second);
-	  }
-	  SQHit *hit = _hit_vector->at(iter->second);
-	  if(verbosity >= Fun4AllBase::VERBOSITY_A_LOT) {
-	    hit->identify();
-	  }
-
-	  if(hit and D1X_hits) {
-	    PHG4Hit* g4hit =  D1X_hits->findHit(hit->get_g4hit_id());
-	    if (g4hit) {
-	      if(verbosity >= 2) {
-		g4hit->identify();
-	      }
-	      gx_st1[n_tracks]  = g4hit->get_x(0);
-	      gy_st1[n_tracks]  = g4hit->get_y(0);
-	      gz_st1[n_tracks]  = g4hit->get_z(0);
-	      if(det_id==1){
-		sqx_st1[n_tracks] = hit->get_truth_x();
-		sqy_st1[n_tracks] = hit->get_truth_y();
-		sqz_st1[n_tracks] = hit->get_truth_z();
-	      }                             
-                      
-	      double x0 = hit->get_truth_x()-g4hit->get_px(0)/g4hit->get_pz(0) *hit->get_truth_z();
-	      double y0 = hit->get_truth_y()-g4hit->get_py(0)/g4hit->get_pz(0) *hit->get_truth_z();
-
-	      double x00 = x_st1[n_tracks]-px_st1[n_tracks]/pz_st1[n_tracks] *hit->get_truth_z();
-	      double y00 = y_st1[n_tracks]-py_st1[n_tracks]/pz_st1[n_tracks] *hit->get_truth_z();
-
-	      if(det_id==1){
-		sq_decID[n_tracks]=hit->get_detector_id();
-		sq_pos_st1[n_tracks]=hit->get_pos();
-		
-		sq_drift_st1[n_tracks] = hit->get_drift_distance();
-               
-		rec_drift_st1[n_tracks] = p_geomSvc->getDCA(hit->get_detector_id(), hit->get_element_id(),  px_st1[n_tracks]/pz_st1[n_tracks], py_st1[n_tracks]/pz_st1[n_tracks], x00, y00);
-		
-	      }
-
-	      gpx_st1[n_tracks] = g4hit->get_px(0)/1.;
-	      gpy_st1[n_tracks] = g4hit->get_py(0)/1.;
-	      gpz_st1[n_tracks] = g4hit->get_pz(0)/1.;
-                       
-                                        
-
-	      break;
-	    }
-	  }
-	}
-      }
-      gnhits[n_tracks] =
-	parID_nhits_dc[parID] +
-	parID_nhits_hodo[parID] +
-	parID_nhits_prop[parID] +
-	parID_nhits_dp[parID];
-
-      gndc[n_tracks] = parID_nhits_dc[parID];
-      gnhodo[n_tracks] = parID_nhits_hodo[parID];
-      gnprop[n_tracks] = parID_nhits_prop[parID];
-      gndp[n_tracks] = parID_nhits_dp[parID];
-    }
-    ++n_tracks;
-    if(n_tracks>=1000) break;
-  }
-
-  if(Verbosity() >= Fun4AllBase::VERBOSITY_A_LOT) LogInfo("parID_recID_nHit mapping finished");
-
-  _tout_reco->Fill();
-
-  if(Verbosity() >= Fun4AllBase::VERBOSITY_A_LOT)
-    std::cout << "Leaving AnaTrkQA::RecoEval: " << _event << std::endl;
-
-  return Fun4AllReturnCodes::EVENT_OK;
-}
-
-//play ground for Abi========================
+//play ground for Abi==============================================
 int AnaTrkQA::RecoEvalv2(PHCompositeNode* topNode)
 {
   ResetEvalVars();
@@ -438,9 +110,8 @@ int AnaTrkQA::RecoEvalv2(PHCompositeNode* topNode)
     for(auto iter=_truth->GetPrimaryParticleRange().first;
 	iter!=_truth->GetPrimaryParticleRange().second;
 	++iter) {
-      PHG4Particle * par = iter->second;
-		
-		
+      PHG4Particle * par = iter->second; 
+     
       int trk_id = par->get_track_id();
 
       pid[n_tracks] = par->get_pid();
@@ -460,84 +131,38 @@ int AnaTrkQA::RecoEvalv2(PHCompositeNode* topNode)
       gphi[n_tracks] = mom_truth.Phi();
 
 
-      //st1. true hit info
+      //st1. true g4 hit info (with the D0X) [just filled the tree but sqhit info is used. Can be removed later]
       TVector3 g_pos_st1;
       TLorentzVector g_mom_st1;
-      int st1_hit = FindHitAtStation(trk_id, g4hc_d1x, &g_pos_st1, &g_mom_st1);
-		
-      gx_st1[n_tracks]  = g_pos_st1.X();
-      gy_st1[n_tracks]  = g_pos_st1.Y();
-      gz_st1[n_tracks]  = g_pos_st1.Z();
+      if(FindHitAtStation(trk_id, g4hc_d1x, &g_pos_st1, &g_mom_st1)){;
+	
+	gx_st1[n_tracks]  = g_pos_st1.X();
+	gy_st1[n_tracks]  = g_pos_st1.Y();
+	gz_st1[n_tracks]  = g_pos_st1.Z();
      		
-      gpx_st1[n_tracks] = g_mom_st1.Px();
-      gpy_st1[n_tracks] = g_mom_st1.Py();
-      gpz_st1[n_tracks] = g_mom_st1.Pz();
-
-      //st3. trute hit info (work in progress: get it from either d3pXp or d3mXp)
-      TVector3 g_pos_st3;
-      TLorentzVector g_mom_st3;
-      int d3phit = FindHitAtStation(trk_id, g4hc_d3px, &g_pos_st3, &g_mom_st3);
-      int d3mhit = FindHitAtStation(trk_id, g4hc_d3mx, &g_pos_st3, &g_mom_st3);
-      //create branches to put st3. g4hit info
-                 
-
-
-
-      //=================SQ Hit information for st1. and st3.
-      SQHit *sqhit_st1 = NULL; //just incase need for later on
-      SQHit *sqhit_st3 = NULL;
-      // Get the sqhit position at st1. , st3 and drift distances
-      if(_hit_vector) {
-	for(int ihit=0; ihit<_hit_vector->size(); ++ihit) {
-	  SQHit *hit = _hit_vector->at(ihit);                    
-
-	  //st. 1
-	  if(hit->get_track_id() == trk_id && hit->get_detector_id() == 1) {
-	    sqhit_st1 = hit;
-     
-	    sqx_st1[n_tracks] = hit->get_truth_x();
-	    sqy_st1[n_tracks] = hit->get_truth_y();
-	    sqz_st1[n_tracks] = hit->get_truth_z();
-	    sq_pos_st1[n_tracks]=hit->get_pos();
-	    sq_drift_st1[n_tracks] = hit->get_drift_distance();
-	  }
-		
-	  //st. 3
-	  if(hit->get_track_id() == trk_id && (hit->get_detector_id() == 27/*D3mXp*/||hit->get_detector_id() == 21/*D3pXp*/)){
-	    sqhit_st3 = hit;
-	    //create branch to store st.3 sqhit information
-	  }
-			
-	}
+	gpx_st1[n_tracks] = g_mom_st1.Px();
+	gpy_st1[n_tracks] = g_mom_st1.Py();
+	gpz_st1[n_tracks] = g_mom_st1.Pz();
       }
 
+      //st3. trute hit info [can be filled to tree but for now sqhit infor is used]
+      TVector3 g_pos_st3;
+      TLorentzVector g_mom_st3;
+      if (FindHitAtStation(trk_id, g4hc_d3px, &g_pos_st3, &g_mom_st3)|| FindHitAtStation(trk_id, g4hc_d3mx, &g_pos_st3, &g_mom_st3)){
+		  //work in progress...(for now sqhit is   )        
+      } 
 
-           
-      //====Find best reco track in terms of momentum======
- 
-      float deltaP = 100.;
-      float hold_deltaP = 9999.;
-            
+		
+      //==========Implementing function to catch best track in terms of momemtum===
       SRecTrack* Best_recTrack = NULL;
-      n_recTracks = _recEvent->getNTracks();
-      //Loop over the SRecTracks
-      for(int itrack=0; itrack<_recEvent->getNTracks(); ++itrack){
-			
-	if (hold_deltaP>deltaP) hold_deltaP = deltaP;
+      n_recTracks[n_tracks]= _recEvent->getNTracks();
+	
+      if(_recEvent->getNTracks()>0) Best_recTrack = FindBestRecTrack(_recEvent, mom_truth.Mag());
 
-	SRecTrack* recTrack = &_recEvent->getTrack(itrack);
+      if(Best_recTrack){
 
-	deltaP = fabs(mom_truth.Mag()- recTrack->getMomentumVertex().Mag());
-	//Finding out best match track in terms of energy
-	if(deltaP-hold_deltaP<0.) Best_recTrack = recTrack;
-			
-      }//reco track loop
-
-      //===========================Now fill all info from Best Reco track 
-
-      if (Best_recTrack){
 	TVector3 rec_mom = Best_recTrack->getTargetMom();
-	cout<<" reco momentum Px,Py,Pz: "<<rec_mom.Px()<<", "<<rec_mom.Py()<<", "<<rec_mom.Pz()<<endl;
+		
 	nhits[n_tracks] = Best_recTrack->getNHits();
 	charge[n_tracks] = Best_recTrack->getCharge();
 	TVector3 rec_vtx = Best_recTrack->getTargetPos();
@@ -559,38 +184,191 @@ int AnaTrkQA::RecoEvalv2(PHCompositeNode* topNode)
 
 
 		
-	//st. 1 reco values   
+	//st. 1 reco values [Just filled in tree but not used..other "rec_*" branches are filled inside sqhit vector loop   
 	double tx, ty, tz;
 	Best_recTrack->getMomentumSt1(tx, ty, tz);
 	px_st1[n_tracks] = tx;
 	py_st1[n_tracks] = ty;
 	pz_st1[n_tracks] = tz;
-	cout<<" In station 1, pz: "<<pz_st1[n_tracks]<<endl;
-
+		
 	double x, y;
 	Best_recTrack->getPositionSt1(x, y);		
 	x_st1[n_tracks] = x;		
 	y_st1[n_tracks] = y;
 
-	// Pull distribution work 
-	double state_vec00_st1  = Best_recTrack->getStateVector(0)[0][0];
-	double cov00_st1 = Best_recTrack->getCovariance(0)[0][0];
-	double true_mom_st1 = sqrt(gpx_st1[n_tracks]*gpx_st1[n_tracks]+gpy_st1[n_tracks]*gpy_st1[n_tracks]+gpz_st1[n_tracks]*gpz_st1[n_tracks]);
-	pull_state00[n_tracks] = (fabs(state_vec00_st1) - 1./true_mom_st1)/sqrt(cov00_st1); 
-	//work for other state vectors too
-
-
-	//calculating drift distance for reco track
-	if(sqhit_st1 ) {
-	
-	  double x00 = x_st1[n_tracks]-px_st1[n_tracks]/pz_st1[n_tracks] *sqhit_st1->get_truth_z();
-	  double y00 = y_st1[n_tracks]-py_st1[n_tracks]/pz_st1[n_tracks] *sqhit_st1->get_truth_z();
-
-	  rec_drift_st1[n_tracks] = p_geomSvc->getDCA(sqhit_st1->get_detector_id(), sqhit_st1->get_element_id(),  px_st1[n_tracks]/pz_st1[n_tracks], py_st1[n_tracks]/pz_st1[n_tracks], x00, y00);
-	  cout<<" x00: "<<x00<<" reco drift: "<<rec_drift_st1[n_tracks]<<endl;
-
-	}    
       }//if best track
+
+
+      //=================SQ Hit information
+      SQHit *sqhit_st1 = NULL;
+      SQHit *sqhit_st3 = NULL;
+      // Get the sqhit position at st1. , st3 and drift distances
+      if(_hit_vector) {
+	for(int ihit=0; ihit<_hit_vector->size(); ++ihit) {
+	  SQHit *hit = _hit_vector->at(ihit);                    
+
+
+	  //st. 1 for now D0X
+	  if(hit->get_track_id() == trk_id && hit->get_detector_id() ==3 ) {
+	    sqhit_st1 = hit;
+            		
+	    sq_px_st1[n_tracks] = hit->get_truth_px();
+	    sq_py_st1[n_tracks] = hit->get_truth_py();
+	    sq_pz_st1[n_tracks] = hit->get_truth_pz();
+		
+	    sq_x_st1[n_tracks] = hit->get_truth_x();
+	    sq_y_st1[n_tracks] = hit->get_truth_y();
+	    sq_z_st1[n_tracks] = hit->get_truth_z();
+	    sq_pos_st1[n_tracks]=hit->get_pos();
+	    sq_drift_st1[n_tracks] = hit->get_drift_distance();
+ 
+	    //iF the best reco track available
+	    if (Best_recTrack){						
+	      double sq_z = hit->get_truth_z();
+	      int rec_index = Best_recTrack->getNearestNode(sq_z);
+			
+	      double rec_z = Best_recTrack->getZ(rec_index);
+						
+	      if(fabs(sq_z- rec_z>1.)) continue;//to avid mismatch of node
+			
+	      double p_rec = fabs(1./Best_recTrack->getStateVector(rec_index)[0][0]);
+	      double tx_rec = Best_recTrack->getStateVector(rec_index)[1][0];
+	      double ty_rec = Best_recTrack->getStateVector(rec_index)[2][0];
+	      double x_rec = Best_recTrack->getStateVector(rec_index)[3][0];
+	      double y_rec = Best_recTrack->getStateVector(rec_index)[4][0];
+
+	      double x0 = x_rec - tx_rec *rec_z;
+	      double y0 = y_rec - ty_rec *rec_z;
+
+	      rec_p_st1[n_tracks] =  p_rec;
+	      rec_pz_st1[n_tracks] = p_rec/sqrt(1.+tx_rec*tx_rec+ty_rec*ty_rec);
+	      rec_px_st1[n_tracks] = rec_pz_st1[n_tracks]* tx_rec;
+	      rec_py_st1[n_tracks] = rec_pz_st1[n_tracks]* ty_rec;
+
+	      rec_x_st1[n_tracks] = x_rec;
+	      rec_y_st1[n_tracks] = y_rec;
+							
+	      rec_drift_st1[n_tracks] = p_geomSvc->getDCA(hit->get_detector_id(), hit->get_element_id(),tx_rec, ty_rec, x0,y0);			
+	      // Pull distribution work 
+	      double cov00_st1 = Best_recTrack->getCovariance(rec_index)[0][0];
+	      double sq_mom_st1 = sqrt(sq_px_st1[n_tracks]*sq_px_st1[n_tracks]+sq_py_st1[n_tracks]*sq_py_st1[n_tracks]+sq_pz_st1[n_tracks]*sq_pz_st1[n_tracks]);
+	      pull_q2p_st1[n_tracks] = (fabs(Best_recTrack->getStateVector(rec_index)[0][0]) - 1./sq_mom_st1)/sqrt(cov00_st1);		        
+		
+	  
+	    }//best reco condition
+	  }//st.1 work ends
+
+	  //==========
+
+	  //st. 2 for now D2Xp
+	  if(hit->get_track_id() == trk_id && hit->get_detector_id() ==15 ) {
+			
+            		
+	    sq_px_st2[n_tracks] = hit->get_truth_px();
+	    sq_py_st2[n_tracks] = hit->get_truth_py();
+	    sq_pz_st2[n_tracks] = hit->get_truth_pz();
+		
+	    sq_x_st2[n_tracks] = hit->get_truth_x();
+	    sq_y_st2[n_tracks] = hit->get_truth_y();
+	    sq_z_st2[n_tracks] = hit->get_truth_z();
+	    sq_pos_st2[n_tracks]=hit->get_pos();
+	    sq_drift_st2[n_tracks] = hit->get_drift_distance();
+ 
+	    //iF the best reco track available
+	    if (Best_recTrack){						
+	      double sq_z = hit->get_truth_z();
+	      int rec_index = Best_recTrack->getNearestNode(sq_z);
+			
+	      double rec_z = Best_recTrack->getZ(rec_index);
+						
+	      if(fabs(sq_z- rec_z>1.)) continue;//to avid mismatch of node
+			
+	      double p_rec = fabs(1./Best_recTrack->getStateVector(rec_index)[0][0]);
+	      double tx_rec = Best_recTrack->getStateVector(rec_index)[1][0];
+	      double ty_rec = Best_recTrack->getStateVector(rec_index)[2][0];
+	      double x_rec = Best_recTrack->getStateVector(rec_index)[3][0];
+	      double y_rec = Best_recTrack->getStateVector(rec_index)[4][0];
+
+	      double x0 = x_rec - tx_rec *rec_z;
+	      double y0 = y_rec - ty_rec *rec_z;
+
+	      rec_p_st2[n_tracks] =  p_rec;
+	      rec_pz_st2[n_tracks] = p_rec/sqrt(1.+tx_rec*tx_rec+ty_rec*ty_rec);
+	      rec_px_st2[n_tracks] = rec_pz_st2[n_tracks]* tx_rec;
+	      rec_py_st2[n_tracks] = rec_pz_st2[n_tracks]* ty_rec;
+
+
+	      rec_x_st2[n_tracks] = x_rec;
+	      rec_y_st2[n_tracks] = y_rec;
+							
+	      rec_drift_st2[n_tracks] = p_geomSvc->getDCA(hit->get_detector_id(), hit->get_element_id(),tx_rec, ty_rec, x0,y0);			
+
+	      // Pull distribution work 
+	      double cov00_st2 = Best_recTrack->getCovariance(rec_index)[0][0];
+	      double sq_mom_st2 = sqrt(sq_px_st2[n_tracks]*sq_px_st2[n_tracks]+sq_py_st2[n_tracks]*sq_py_st2[n_tracks]+sq_pz_st2[n_tracks]*sq_pz_st2[n_tracks]);
+	      pull_q2p_st2[n_tracks] = (fabs(Best_recTrack->getStateVector(rec_index)[0][0]) - 1./sq_mom_st2)/sqrt(cov00_st2);		        		
+	  
+	    }//if best reco track	
+	
+	  }//st2. work done
+
+	  //=======================
+	  			 	
+
+	  //st. 3 for now D3mXp(id = 27) or D3pXp (id=21)
+	  if(hit->get_track_id() == trk_id && (hit->get_detector_id() == 27 ||hit->get_detector_id() == 27)) {          		
+	  sq_px_st3[n_tracks] = hit->get_truth_px();
+	  sq_py_st3[n_tracks] = hit->get_truth_py();
+	  sq_pz_st3[n_tracks] = hit->get_truth_pz();
+		
+	  sq_x_st3[n_tracks] = hit->get_truth_x();
+	  sq_y_st3[n_tracks] = hit->get_truth_y();
+	  sq_z_st3[n_tracks] = hit->get_truth_z();
+	  sq_pos_st3[n_tracks]=hit->get_pos();
+	  sq_drift_st3[n_tracks] = hit->get_drift_distance();
+ 
+	  //iF the best reco track available
+	  if (Best_recTrack){						
+	  double sq_z = hit->get_truth_z();
+	  int rec_index = Best_recTrack->getNearestNode(sq_z);
+			
+	  double rec_z = Best_recTrack->getZ(rec_index);
+						
+	  if(fabs(sq_z- rec_z>1.)) continue;//to avid mismatch of node
+			
+	  double p_rec = fabs(1./Best_recTrack->getStateVector(rec_index)[0][0]);
+	  double tx_rec = Best_recTrack->getStateVector(rec_index)[1][0];
+	  double ty_rec = Best_recTrack->getStateVector(rec_index)[2][0];
+	  double x_rec = Best_recTrack->getStateVector(rec_index)[3][0];
+	  double y_rec = Best_recTrack->getStateVector(rec_index)[4][0];
+
+	  double x0 = x_rec - tx_rec *rec_z;
+	  double y0 = y_rec - ty_rec *rec_z;
+
+	  rec_p_st3[n_tracks] =  p_rec;
+	  rec_pz_st3[n_tracks] = p_rec/sqrt(1.+tx_rec*tx_rec+ty_rec*ty_rec);
+	  rec_px_st3[n_tracks] = rec_pz_st3[n_tracks]* tx_rec;
+	  rec_py_st3[n_tracks] = rec_pz_st3[n_tracks]* ty_rec;
+
+	  rec_x_st3[n_tracks] = x_rec;
+	  rec_y_st3[n_tracks] = y_rec;
+							
+	  rec_drift_st3[n_tracks] = p_geomSvc->getDCA(hit->get_detector_id(), hit->get_element_id(),tx_rec, ty_rec, x0,y0);			
+
+	  // Pull distribution work 
+	  double cov00_st3 = Best_recTrack->getCovariance(rec_index)[0][0];
+	  double sq_mom_st3 = sqrt(sq_px_st3[n_tracks]*sq_px_st3[n_tracks]+sq_py_st3[n_tracks]*sq_py_st3[n_tracks]+sq_pz_st3[n_tracks]*sq_pz_st3[n_tracks]);
+	  pull_q2p_st3[n_tracks] = (fabs(Best_recTrack->getStateVector(rec_index)[0][0]) - 1./sq_mom_st3)/sqrt(cov00_st3);		        		
+	  
+	  }//if best reco track	
+	
+	  }//st3. work done
+	  
+	  //=======================		
+			
+	}//sqhit vector loop
+      }//if hit vector
+
 	 
       ++n_tracks;
       if(n_tracks>=1000) break;
@@ -612,8 +390,6 @@ int AnaTrkQA::End(PHCompositeNode* topNode) {
     std::cout << "AnaTrkQA::End" << std::endl;
 
   PHTFileServer::get().cd(_out_name.c_str());
-
-  _tout_reco->Write();
   _qa_tree->Write();
   
   return Fun4AllReturnCodes::EVENT_OK;
@@ -622,69 +398,6 @@ int AnaTrkQA::End(PHCompositeNode* topNode) {
 int AnaTrkQA::InitEvalTree() {
  
   PHTFileServer::get().open(_out_name.c_str(), "RECREATE");
-
-
-  _tout_reco = new TTree("Reco", "Reco Eval");
-
-  _tout_reco->Branch("krecstat",      &krecstat,           "krecstat/I");
-  _tout_reco->Branch("n_tracks",      &n_tracks,           "n_tracks/I");
-  _tout_reco->Branch("par_id",        par_id,              "par_id[n_tracks]/I");
-  _tout_reco->Branch("rec_id",        rec_id,              "rec_id[n_tracks]/I");
-  _tout_reco->Branch("pid",           pid,                 "pid[n_tracks]/I");
-  _tout_reco->Branch("gvx",           gvx,                 "gvx[n_tracks]/F");
-  _tout_reco->Branch("gvy",           gvy,                 "gvy[n_tracks]/F");
-  _tout_reco->Branch("gvz",           gvz,                 "gvz[n_tracks]/F");
-  _tout_reco->Branch("gpx",           gpx,                 "gpx[n_tracks]/F");
-  _tout_reco->Branch("gpy",           gpy,                 "gpy[n_tracks]/F");
-  _tout_reco->Branch("gpz",           gpz,                 "gpz[n_tracks]/F");
-  _tout_reco->Branch("gpt",           gpt,                 "gpt[n_tracks]/F");
-  _tout_reco->Branch("geta",          geta,                "geta[n_tracks]/F");
-  _tout_reco->Branch("gphi",          gphi,                "gphi[n_tracks]/F");
-  _tout_reco->Branch("gx_st1",        gx_st1,              "gx_st1[n_tracks]/F");
-  _tout_reco->Branch("gy_st1",        gy_st1,              "gy_st1[n_tracks]/F");
-  _tout_reco->Branch("gz_st1",        gz_st1,              "gz_st1[n_tracks]/F");
-  _tout_reco->Branch("gpx_st1",       gpx_st1,             "gpx_st1[n_tracks]/F");
-  _tout_reco->Branch("gpy_st1",       gpy_st1,             "gpy_st1[n_tracks]/F");
-  _tout_reco->Branch("gpz_st1",       gpz_st1,             "gpz_st1[n_tracks]/F");
-  _tout_reco->Branch("gnhits",        gnhits,              "gnhits[n_tracks]/I");
-  _tout_reco->Branch("gndc",          gndc,                "gndc[n_tracks]/I");
-  _tout_reco->Branch("gnhodo",        gnhodo,              "gnhodo[n_tracks]/I");
-  _tout_reco->Branch("gnprop",        gnprop,              "gnprop[n_tracks]/I");
-  _tout_reco->Branch("gndp",          gndp,                "gndp[n_tracks]/I");
- 
-  _tout_reco->Branch("sq_pos_st1",      sq_pos_st1,         "sq_pos_st1[n_tracks]/F");
-  _tout_reco->Branch("sq_drift_st1",    sq_drift_st1,       "sq_drift_st1[n_tracks]/F");
-  _tout_reco->Branch("sq_decID",        sq_decID,           "sq_decID[n_tracks]/F");
-  _tout_reco->Branch("rec_drift_st1",   rec_drift_st1,      "rec_drift_st1[n_tracks]/F"); 
-  _tout_reco->Branch("sqx_st1",        sqx_st1,              "sqx_st1[n_tracks]/F");
-  _tout_reco->Branch("sqy_st1",        sqy_st1,              "sqy_st1[n_tracks]/F");
-  _tout_reco->Branch("sqz_st1",        sqz_st1,              "sqz_st1[n_tracks]/F");
-  _tout_reco->Branch("chisq_st1",      chisq_st1,            "chisq_st1[n_tracks]/F");
-  _tout_reco->Branch("prob_st1",       prob_st1,             "prob_st1[n_tracks]/F");
-  _tout_reco->Branch("quality",        quality,             "quality[n_tracks]/F");
-
-
-  //_tout_reco->Branch("gelmid",        gelmid,              "gelmid[n_tracks][128]/I");
-
-  _tout_reco->Branch("ntruhits",      ntruhits,            "ntruhits[n_tracks]/I");
-  _tout_reco->Branch("nhits",         nhits,               "nhits[n_tracks]/I");
-  _tout_reco->Branch("charge",        charge,              "charge[n_tracks]/I");
-  _tout_reco->Branch("vx",            vx,                  "vx[n_tracks]/F");
-  _tout_reco->Branch("vy",            vy,                  "vy[n_tracks]/F");
-  _tout_reco->Branch("vz",            vz,                  "vz[n_tracks]/F");
-  _tout_reco->Branch("px",            px,                  "px[n_tracks]/F");
-  _tout_reco->Branch("py",            py,                  "py[n_tracks]/F");
-  _tout_reco->Branch("pz",            pz,                  "pz[n_tracks]/F");
-  _tout_reco->Branch("pt",            pt,                  "pt[n_tracks]/F");
-  _tout_reco->Branch("eta",           eta,                 "eta[n_tracks]/F");
-  _tout_reco->Branch("phi",           phi,                 "phi[n_tracks]/F");
-  _tout_reco->Branch("x_st1",         x_st1,               "x_st1[n_tracks]/F");
-  _tout_reco->Branch("y_st1",         y_st1,               "y_st1[n_tracks]/F");
-  _tout_reco->Branch("px_st1",        px_st1,              "px_st1[n_tracks]/F");
-  _tout_reco->Branch("py_st1",        py_st1,              "py_st1[n_tracks]/F");
-  _tout_reco->Branch("pz_st1",        pz_st1,              "pz_st1[n_tracks]/F");
-
-
 
   // For the QA tree======================
   _qa_tree = new TTree("QA_ana", "QA analsysis of reconstruction and simulation");
@@ -718,17 +431,66 @@ int AnaTrkQA::InitEvalTree() {
  
   _qa_tree->Branch("sq_pos_st1",      sq_pos_st1,         "sq_pos_st1[n_tracks]/F");
   _qa_tree->Branch("sq_drift_st1",    sq_drift_st1,       "sq_drift_st1[n_tracks]/F");
-  _qa_tree->Branch("sq_decID",        sq_decID,           "sq_decID[n_tracks]/F");
-  _qa_tree->Branch("rec_drift_st1",   rec_drift_st1,      "rec_drift_st1[n_tracks]/F"); 
-  _qa_tree->Branch("sqx_st1",        sqx_st1,              "sqx_st1[n_tracks]/F");
-  _qa_tree->Branch("sqy_st1",        sqy_st1,              "sqy_st1[n_tracks]/F");
-  _qa_tree->Branch("sqz_st1",        sqz_st1,              "sqz_st1[n_tracks]/F");
+  _qa_tree->Branch("sq_decID",        sq_decID,           "sq_decID[n_tracks]/F"); 
+  _qa_tree->Branch("sq_x_st1",        sq_x_st1,              "sq_x_st1[n_tracks]/F");
+  _qa_tree->Branch("sq_y_st1",        sq_y_st1,              "sq_y_st1[n_tracks]/F");
+  _qa_tree->Branch("sq_z_st1",        sq_z_st1,              "sq_z_st1[n_tracks]/F");
+  _qa_tree->Branch("sq_px_st1",        sq_px_st1,              "sq_px_st1[n_tracks]/F");
+  _qa_tree->Branch("sq_py_st1",        sq_py_st1,              "sq_py_st1[n_tracks]/F");
+  _qa_tree->Branch("sq_pz_st1",        sq_pz_st1,              "sq_pz_st1[n_tracks]/F");
+
+
+  _qa_tree->Branch("rec_drift_st1",   rec_drift_st1,      "rec_drift_st1[n_tracks]/F");
+  _qa_tree->Branch("rec_px_st1",      rec_px_st1,      "rec_px_st1[n_tracks]/F");
+  _qa_tree->Branch("rec_py_st1",      rec_py_st1,      "rec_py_st1[n_tracks]/F");
+  _qa_tree->Branch("rec_pz_st1",      rec_pz_st1,      "rec_pz_st1[n_tracks]/F");
+  _qa_tree->Branch("rec_x_st1",      rec_x_st1,      "rec_x_st1[n_tracks]/F");
+  _qa_tree->Branch("rec_y_st1",      rec_y_st1,      "rec_y_st1[n_tracks]/F");
+
+
+  _qa_tree->Branch("sq_pos_st2",      sq_pos_st2,         "sq_pos_st2[n_tracks]/F");
+  _qa_tree->Branch("sq_drift_st2",    sq_drift_st2,       "sq_drift_st2[n_tracks]/F");
+  _qa_tree->Branch("sq_x_st2",        sq_x_st2,              "sq_x_st2[n_tracks]/F");
+  _qa_tree->Branch("sq_y_st2",        sq_y_st2,              "sq_y_st2[n_tracks]/F");
+  _qa_tree->Branch("sq_z_st2",        sq_z_st2,              "sq_z_st2[n_tracks]/F");
+  _qa_tree->Branch("sq_px_st2",        sq_px_st2,              "sq_px_st2[n_tracks]/F");
+  _qa_tree->Branch("sq_py_st2",        sq_py_st2,              "sq_py_st2[n_tracks]/F");
+  _qa_tree->Branch("sq_pz_st2",        sq_pz_st2,              "sq_pz_st2[n_tracks]/F");
+
+
+  _qa_tree->Branch("rec_drift_st2",   rec_drift_st2,      "rec_drift_st2[n_tracks]/F");
+  _qa_tree->Branch("rec_px_st2",      rec_px_st2,      "rec_px_st2[n_tracks]/F");
+  _qa_tree->Branch("rec_py_st2",      rec_py_st2,      "rec_py_st2[n_tracks]/F");
+  _qa_tree->Branch("rec_pz_st2",      rec_pz_st2,      "rec_pz_st2[n_tracks]/F");
+  _qa_tree->Branch("rec_x_st2",      rec_x_st2,      "rec_x_st2[n_tracks]/F");
+  _qa_tree->Branch("rec_y_st2",      rec_y_st2,      "rec_y_st2[n_tracks]/F");
+
+  _qa_tree->Branch("sq_pos_st3",      sq_pos_st3,         "sq_pos_st3[n_tracks]/F");
+  _qa_tree->Branch("sq_drift_st3",    sq_drift_st3,       "sq_drift_st3[n_tracks]/F");
+  _qa_tree->Branch("sq_x_st3",        sq_x_st3,              "sq_x_st3[n_tracks]/F");
+  _qa_tree->Branch("sq_y_st3",        sq_y_st3,              "sq_y_st3[n_tracks]/F");
+  _qa_tree->Branch("sq_z_st3",        sq_z_st3,              "sq_z_st3[n_tracks]/F");
+  _qa_tree->Branch("sq_px_st3",        sq_px_st3,              "sq_px_st3[n_tracks]/F");
+  _qa_tree->Branch("sq_py_st3",        sq_py_st3,              "sq_py_st3[n_tracks]/F");
+  _qa_tree->Branch("sq_pz_st3",        sq_pz_st3,              "sq_pz_st3[n_tracks]/F");
+
+
+  _qa_tree->Branch("rec_drift_st3",   rec_drift_st3,      "rec_drift_st3[n_tracks]/F");
+  _qa_tree->Branch("rec_px_st3",      rec_px_st3,      "rec_px_st3[n_tracks]/F");
+  _qa_tree->Branch("rec_py_st3",      rec_py_st3,      "rec_py_st3[n_tracks]/F");
+  _qa_tree->Branch("rec_pz_st3",      rec_pz_st3,      "rec_pz_st3[n_tracks]/F");
+  _qa_tree->Branch("rec_x_st3",      rec_x_st3,      "rec_x_st3[n_tracks]/F");
+  _qa_tree->Branch("rec_y_st3",      rec_y_st3,      "rec_y_st3[n_tracks]/F");
+
+
+  _qa_tree->Branch("pull_q2p_st1",      pull_q2p_st1,      "pull_q2p_st1[n_tracks]/F");
+  _qa_tree->Branch("pull_q2p_st2",      pull_q2p_st2,      "pull_q2p_st2[n_tracks]/F");
+  _qa_tree->Branch("pull_q2p_st3",      pull_q2p_st3,      "pull_q2p_st3[n_tracks]/F");
+
+
   _qa_tree->Branch("chisq_st1",      chisq_st1,            "chisq_st1[n_tracks]/F");
   _qa_tree->Branch("prob_st1",       prob_st1,             "prob_st1[n_tracks]/F");
   _qa_tree->Branch("quality",        quality,             "quality[n_tracks]/F");
-
-
-  //_qa_tree->Branch("gelmid",        gelmid,              "gelmid[n_tracks][128]/I");
 
   _qa_tree->Branch("ntruhits",      ntruhits,            "ntruhits[n_tracks]/I");
   _qa_tree->Branch("nhits",         nhits,               "nhits[n_tracks]/I");
@@ -748,7 +510,7 @@ int AnaTrkQA::InitEvalTree() {
   _qa_tree->Branch("py_st1",        py_st1,              "py_st1[n_tracks]/F");
   _qa_tree->Branch("pz_st1",        pz_st1,              "pz_st1[n_tracks]/F");
 
-  _qa_tree->Branch("pull_state00",   pull_state00,       "pull_state00[n_tracks]/F");
+  
 
   return 0;
 }
@@ -823,6 +585,57 @@ int AnaTrkQA::ResetEvalVars() {
     px_st1[i]     = std::numeric_limits<float>::max();
     py_st1[i]     = std::numeric_limits<float>::max();
     pz_st1[i]     = std::numeric_limits<float>::max();
+
+    sq_x_st1[i]     = std::numeric_limits<float>::max();
+    sq_y_st1[i]     = std::numeric_limits<float>::max();
+    sq_z_st1[i]     = std::numeric_limits<float>::max();
+    sq_px_st1[i]     = std::numeric_limits<float>::max();
+    sq_py_st1[i]     = std::numeric_limits<float>::max();
+    sq_pz_st1[i]     = std::numeric_limits<float>::max();
+    sq_pos_st1[i]     = std::numeric_limits<float>::max();
+    sq_drift_st1[i]     = std::numeric_limits<float>::max(); 
+ 
+    rec_x_st1[i]     = std::numeric_limits<float>::max();
+    rec_y_st1[i]     = std::numeric_limits<float>::max();
+    rec_px_st1[i]     = std::numeric_limits<float>::max();
+    rec_py_st1[i]     = std::numeric_limits<float>::max();
+    rec_pz_st1[i]     = std::numeric_limits<float>::max();
+    rec_drift_st1[i]     = std::numeric_limits<float>::max();
+ 
+
+    sq_x_st2[i]     = std::numeric_limits<float>::max();
+    sq_y_st2[i]     = std::numeric_limits<float>::max();
+    sq_z_st2[i]     = std::numeric_limits<float>::max();
+    sq_px_st2[i]     = std::numeric_limits<float>::max();
+    sq_py_st2[i]     = std::numeric_limits<float>::max();
+    sq_pz_st2[i]     = std::numeric_limits<float>::max();
+    sq_pos_st2[i]     = std::numeric_limits<float>::max();
+    sq_drift_st2[i]     = std::numeric_limits<float>::max();
+
+    rec_x_st2[i]     = std::numeric_limits<float>::max();
+    rec_y_st2[i]     = std::numeric_limits<float>::max();
+    rec_px_st2[i]     = std::numeric_limits<float>::max();
+    rec_py_st2[i]     = std::numeric_limits<float>::max();
+    rec_pz_st2[i]     = std::numeric_limits<float>::max();
+    rec_drift_st2[i]     = std::numeric_limits<float>::max();
+ 
+
+    sq_x_st3[i]     = std::numeric_limits<float>::max();
+    sq_y_st3[i]     = std::numeric_limits<float>::max();
+    sq_z_st3[i]     = std::numeric_limits<float>::max();
+    sq_px_st3[i]     = std::numeric_limits<float>::max();
+    sq_py_st3[i]     = std::numeric_limits<float>::max();
+    sq_pz_st3[i]     = std::numeric_limits<float>::max();
+    sq_pos_st3[i]     = std::numeric_limits<float>::max();
+    sq_drift_st3[i]     = std::numeric_limits<float>::max();
+
+    rec_x_st3[i]     = std::numeric_limits<float>::max();
+    rec_y_st3[i]     = std::numeric_limits<float>::max();
+    rec_px_st3[i]     = std::numeric_limits<float>::max();
+    rec_py_st3[i]     = std::numeric_limits<float>::max();
+    rec_pz_st3[i]     = std::numeric_limits<float>::max();
+    rec_drift_st3[i]     = std::numeric_limits<float>::max();
+
   }
 
   return 0;
@@ -894,7 +707,7 @@ int AnaTrkQA::GetNodes(PHCompositeNode* topNode) {
 }
 
 
-//Adapted from Kenichi's truth node maker's function
+//For finding g4hit information in stations (following Kenichi's truth node maker)
 bool AnaTrkQA::FindHitAtStation(const int trk_id, const PHG4HitContainer* g4hc, TVector3* pos, TLorentzVector* mom)
 {
   const double M_MU = 0.1056583745; // GeV
@@ -910,4 +723,24 @@ bool AnaTrkQA::FindHitAtStation(const int trk_id, const PHG4HitContainer* g4hc, 
   return false;
 }
 
+
+//Function for finding best reco track
+SRecTrack* AnaTrkQA::FindBestRecTrack(SRecEvent *recEvent,  const float true_TargetP)
+{
+  double dP = 100.;
+  double hold_dP = 99999.;
+  
+  SRecTrack* Best_recTrack =  NULL;
+  for(int itrack=0; itrack<recEvent->getNTracks(); ++itrack){   
+    if (hold_dP>dP) hold_dP = dP;
+    SRecTrack *recTrack = &recEvent->getTrack(itrack);
+    dP = fabs(true_TargetP - recTrack->getTargetMom().Mag());
+   
+    //Finding out best match track in terms of energy
+    if(dP-hold_dP<0.) Best_recTrack = recTrack;  
+  }
+  cout<<" best track inside function: "<<Best_recTrack->getTargetMom().Mag()<<"True P"<<true_TargetP<<endl;
+  return Best_recTrack;
+  
+}
 
