@@ -39,7 +39,7 @@ class SQHit;
 class PHG4TruthInfoContainer;
 class PHG4HitContainer;
 class SRecEvent;
-
+class SRecTrack;
 class GeomSvc;
 
 class TFile;
@@ -81,12 +81,11 @@ class AnaTrkQA: public SubsysReco {
 
   int GetNodes(PHCompositeNode *topNode);
 
-  int TruthEval(PHCompositeNode *topNode);
-  int RecoEval(PHCompositeNode *topNode);
   int RecoEvalv2(PHCompositeNode *topNode);
   
   bool FindHitAtStation(const int trk_id, const PHG4HitContainer* g4hc, TVector3* pos, TLorentzVector* mom);
-  bool FindSQHitAtStation(const int trk_id, const int Det_id, SQHitVector* sqhit_vector, TVector3* pos, SQHit* hit);
+
+  SRecTrack* FindBestRecTrack(SRecEvent *recEvent, const float true_P);
 
   std::string _hit_container_type;
 
@@ -133,7 +132,7 @@ class AnaTrkQA: public SubsysReco {
   float truth_pos[10000];
 
   int n_tracks;
-  int n_recTracks;
+  int n_recTracks[1000];
   int rec_id[1000];
   int par_id[1000];
   int pid[1000];
@@ -148,18 +147,76 @@ class AnaTrkQA: public SubsysReco {
   float gy_st1[1000];
   float gz_st1[1000];
         
-       
-  float sq_pos_st1[1000];
-  float sq_drift_st1[1000];
-  float sq_decID[1000];
-  float rec_drift_st1[100];        
   float sqx_st1[1000];
   float sqy_st1[1000];
-  float sqz_st1[1000];
+  float sqz_st1[1000];  
+
+     
+  float sq_pos_st1[1000];
+  float sq_drift_st1[1000];
+  float sq_decID[1000];        
+  float sq_x_st1[1000];
+  float sq_y_st1[1000];
+  float sq_z_st1[1000];
+  float sq_px_st1[1000];
+  float sq_py_st1[1000];
+  float sq_pz_st1[1000];
+
+
+  float sq_pos_st2[1000];
+  float sq_drift_st2[1000];
+  float sq_x_st2[1000];
+  float sq_y_st2[1000];
+  float sq_z_st2[1000];
+  float sq_px_st2[1000];
+  float sq_py_st2[1000];
+  float sq_pz_st2[1000];
+
+
+  float sq_pos_st3[1000];
+  float sq_drift_st3[1000];
+  float sq_x_st3[1000];
+  float sq_y_st3[1000];
+  float sq_z_st3[1000];
+  float sq_px_st3[1000];
+  float sq_py_st3[1000];
+  float sq_pz_st3[1000];
+
+
   float chisq_st1[1000];
   float prob_st1[1000];
   float quality[1000];
-       
+//new add
+  float pull_q2p_st1[1000];  
+  float pull_q2p_st2[1000];
+  float pull_q2p_st3[1000];
+
+
+  float rec_drift_st1[1000];
+  float rec_px_st1[1000];
+  float rec_py_st1[1000];
+  float rec_pz_st1[1000];
+  float rec_p_st1[1000];
+  float rec_x_st1[1000];
+  float rec_y_st1[1000];  	
+
+  float rec_drift_st2[1000];
+  float rec_px_st2[1000];
+  float rec_py_st2[1000];
+  float rec_pz_st2[1000];
+  float rec_p_st2[1000];
+  float rec_x_st2[1000];
+  float rec_y_st2[1000];
+
+
+  float rec_drift_st3[1000];
+  float rec_px_st3[1000];
+  float rec_py_st3[1000];
+  float rec_pz_st3[1000];
+  float rec_p_st3[1000];
+  float rec_x_st3[1000];
+  float rec_y_st3[1000];
+     
   float gpx_st1[1000];
   float gpy_st1[1000];
   float gpz_st1[1000];
