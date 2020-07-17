@@ -1,7 +1,7 @@
 /**
  * \class AnaTrkQA
  * \ module for track quality assurance
- * \author Haiwang, modified by Abinash Pun
+ * \author: Abinash Pun
  *
  * 
  */
@@ -739,7 +739,7 @@ SRecTrack* AnaTrkQA::FindBestRecTrack(SRecEvent *recEvent,  const float true_Tar
     //Finding out best match track in terms of energy
     if(dP-hold_dP<0.) Best_recTrack = recTrack;  
   }
-  cout<<" best track inside function: "<<Best_recTrack->getTargetMom().Mag()<<"True P"<<true_TargetP<<endl;
+  
   return Best_recTrack;
   
 }
