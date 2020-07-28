@@ -26,70 +26,6 @@
 
 using namespace std;
 
-void do_dp_kinmetics(const TH2D*dpvsp){
-
- TCanvas *c7= new TCanvas("c7","c7");
- Double_t sigma2var[16];
- Double_t sigma2var_err[16];
- Double_t variable[16];
- Double_t mean_diff_err[16];
- Double_t mean_diff[16];
- TH1D *projection[16];
- char name[16];
- Double_t maxbin,center, suni, maxx, minx;
- TF1* gausfit=new TF1("gausfit","gaus",0,1000);
- gStyle->SetOptFit();  
-  TF1* res_fit =new TF1("res_fit", "[0]/sqrt(x)+[1]+[2]/x",5.,100.);  
-  c7->Divide(4,4);
-
-  for(int i=0;i<16; i++){
-
-    variable[i] = 5*i+10;
-    Int_t lowerbin = dpvsp->GetXaxis()->FindBin(5*i+12.5);
-    Int_t upperbin = dpvsp->GetXaxis()->FindBin(5*i+17.5);
-    sprintf(name,"%i<P<%i",5*i+12,5*i+17);
-    projection[i] = (TH1D*)dpvsp->ProjectionY(name,lowerbin,upperbin,"");
-    c7->cd(i+1);
-    maxbin = projection[i]->GetMaximumBin();
-    center = projection[i]->GetBinCenter(maxbin);
-    
-    //choose the range of the gaussfit according to need
-    if(i<4) suni=.5;
-    else if (i<7) suni = 0.75;
-    else if( i<8) suni = 1.;
-    else if(i<12) suni = 1.5;
-    else suni =2.0;
-    
-    maxx = center + suni;
-    minx = center - suni;
-    projection[i]->Draw();
-    projection[i]->Fit("gausfit","Q",",",minx,maxx);
-    sigma2var[i]=gausfit->GetParameter(2)/variable[i];
-    sigma2var_err[i]=gausfit->GetParError(2)/variable[i];
-    mean_diff[i] = gausfit->GetParameter(1);
-    mean_diff_err[i] = gausfit->GetParError(1);    
-}
- 
-  TGraphErrors* sigma2p_p = new TGraphErrors(16,variable,sigma2var,0,sigma2var_err);
-  TCanvas *c8 = new TCanvas("c8","c8");
-  sigma2p_p->Draw("AP");
-  sigma2p_p->Fit("res_fit","Q","",5,90);
-  c8->SaveAs("plots/mom_reso.png");
-
- //Mean difference vs truth plot
-  TGraphErrors* dp_p = new TGraphErrors(16,variable,mean_diff,0,mean_diff_err);
-  TCanvas *c9 = new TCanvas("c9","c9");
-  dp_p->Draw("AP");
-  dp_p->SetMarkerStyle(8);
-  TLine * line = new TLine(4.,0,92.,0);
-  line->Draw("same");
-  line->SetLineStyle(9);
-  line->SetLineWidth(2);
-  dp_p->SetName("plots/deltap_p.png"); 
-}
-
-//=========
-
 void plot_trackQA(const char* infile = "trackQA.root"){
  float mu_mass = .105658;
 
@@ -492,8 +428,6 @@ void plot_trackQA(const char* infile = "trackQA.root"){
  c3_st3->SetLogy();
  c3_st3->SaveAs("plots/ddrift_st3.png");
 
-//=======Kinematic dependence work
- if(Reco_eval->GetEntries()>=50000)do_dp_kinmetics(dP_P_st1); //only for higer statistics
 
 }
 
