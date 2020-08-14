@@ -864,7 +864,11 @@ SRecTrack* AnaTrkQA::FindBestMomRecTrack(SRecEvent *recEvent,  const float true_
     //Finding out best match track in terms of energy
     if(dP-hold_dP<0.) Best_recTrack = recTrack;  
   }
+<<<<<<< HEAD
  
+=======
+  
+>>>>>>> 22749cdd1968218569472c722a04b6529357bb2a
   return Best_recTrack;
   
 }
