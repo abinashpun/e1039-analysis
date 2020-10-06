@@ -2,7 +2,7 @@
 
 nevents=$1
 run_number=$2
-
+data_file=$3
 
 if [ -z ${CONDOR_DIR_INPUT+x} ];
   then
@@ -24,14 +24,11 @@ fi
 echo "hello, grid." | tee out.txt $CONDOR_DIR_OUTPUT/out.txt
 echo "HOST = $HOSTNAME" | tee -a out.txt $CONDOR_DIR_OUTPUT/out.txt
 pwd | tee -a out.txt $CONDOR_DIR_OUTPUT/out.txt
-ls -l $CONDOR_DIR_INPUT
+#ls -l $CONDOR_DIR_INPUT
 tar -xzvf $CONDOR_DIR_INPUT/input.tar.gz
 
-ln $(printf '%s/run_%06d_spin.root' $CONDOR_DIR_INPUT $run_number) data.root 
-#ln $(printf '%s/run_001283_spill_%09d_spin.root' $CONDOR_DIR_INPUT $run_number) data.root #for 1283 long run
-ls -lh | tee -a out.txt $CONDOR_DIR_OUTPUT/out.txt
-
-
+ln -s $CONDOR_DIR_INPUT/$data_file data.root 
+#ls -lh | tee -a out.txt $CONDOR_DIR_OUTPUT/out.txt
 
 FN_SETUP=/e906/app/software/osg/software/e1039/this-e1039.sh
 if [ ! -e $FN_SETUP ] ; then # On grid
@@ -42,8 +39,7 @@ source $FN_SETUP
 
 echo "LD_LIBRARY_PATH=$LD_LIBRARY_PATH"
 
-
-time root -b -q RecoE1039Data.C\($nevents,$run_number\)
+time root -b -q RecoE1039Data.C\($nevents\)
 RET=$?
 if [ $RET -ne 0 ] ; then
     echo "Error in RecoE1039Data.C: $RET"

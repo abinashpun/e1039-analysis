@@ -5,9 +5,9 @@ LIFE_TIME=long # short (3h), medium (8h) or long (23h)
 
 jobname=$1
 do_sub=$2
-
 run_list=$3
 nevents=$4
+dst_mode=${5:-'split'} # 'split' or 'single'
 
 echo "njobs=$njobs"
 echo "nevents=$nevents"
@@ -30,54 +30,47 @@ fi
 mkdir -p $work
 chmod -R 01755 $work
 
-cd $dir_macros
-tar -czvf $work/input.tar.gz *.C *root
+cd $dir_macros/..
+tar -czvf $work/input.tar.gz  support RecoE1039Data.C
 cd -
 
-
-for run_num in $(cat $run_list) 
-do  
- 
-#location of the data in your persistent area
-data_dir="/pnfs/e906/persistent/users/$USER/DstRun"
-data_file=$(printf 'run_%06d_spin.root' $run_num)
-
-#use this format for the splitted runs
-#data_dir="location/to/your/splitted/long_run"
-#data_file=$(printf 'run_001283_spill_%09d_spin.root' $run_num) #for 1283 long run
-
-
-  mkdir -p $work/$run_num/log
-  mkdir -p $work/$run_num/out
-  chmod -R 01755 $work/$run_num
-
-  rsync -av $dir_macros/gridrun_data.sh $work/$run_num/gridrun_data.sh
-
-  if [ $do_sub == 1 ]; then
-    cmd="jobsub_submit"
-    cmd="$cmd -g --OS=SL7 --use_gftp --resource-provides=usage_model=DEDICATED,OPPORTUNISTIC,OFFSITE -e IFDHC_VERSION --expected-lifetime='$LIFE_TIME'"
-    cmd="$cmd --mail_never"
-    cmd="$cmd -L $work/$run_num/log/log.txt"
-    cmd="$cmd -f $work/input.tar.gz"
-    cmd="$cmd -d OUTPUT $work/$run_num/out"
-    cmd="$cmd --append_condor_requirements='(TARGET.GLIDEIN_Site isnt \"UCSD\")'"
-    cmd="$cmd -f $data_dir/$data_file"
-    cmd="$cmd file://`which $work/$run_num/gridrun_data.sh` $nevents $run_num"
-  
-    echo "$cmd"
-    $cmd
-  else
-    mkdir -p $work/$run_num/input
-    rsync -av $work/input.tar.gz $work/$run_num/input
-    cd $work/$run_num/
-    $work/$run_num/gridrun_data.sh $nevents $run_num | tee $work/$run_num/log/log.txt
-    cd -
+for run_num in $(cat $run_list) ; do  
+  #location of the data in your persistent area
+  data_dir="/pnfs/e906/persistent/users/$USER/DstRun"
+  declare -a data_path_list=()
+  if [ $dst_mode = 'single' ] ; then
+      data_path_list=( $data_dir/$(printf 'run_%06d_spin.root' $run_num) )
+  else # 'split'
+      data_path_list=( $(find $data_dir -name $(printf 'run_%06d_spill_*_spin.root' $run_num) ) )
   fi
-done 2>&1 | tee log_gridsub.txt
 
-## When your job fails due to bad grid nodes,
-## you can use the following option to exclude those nodes;
-##   cmd="$cmd --append_condor_requirements='(TARGET.GLIDEIN_Site isnt \"UCSD\")'"
-## Valid site names are listed here;
-## https://cdcvs.fnal.gov/redmine/projects/fife/wiki/Information_about_job_submission_to_OSG_sites
-## According to the Fermilab Service Desk, the "--blacklist" option has a known defect.
+  for data_path in ${data_path_list[*]} ; do
+    data_file=$(basename $data_path)
+    job_name=${data_file%'.root'}
+    mkdir -p $work/$job_name/log
+    mkdir -p $work/$job_name/out
+    chmod -R 01755 $work/$job_name
+    
+    rsync -av $dir_macros/gridrun_data.sh $work/$job_name/gridrun_data.sh
+
+    if [ $do_sub == 1 ]; then
+      cmd="jobsub_submit"
+      cmd="$cmd -g --OS=SL7 --use_gftp --resource-provides=usage_model=DEDICATED,OPPORTUNISTIC,OFFSITE -e IFDHC_VERSION --expected-lifetime='$LIFE_TIME'"
+      cmd="$cmd --mail_never"
+      cmd="$cmd -L $work/$job_name/log/log.txt"
+      cmd="$cmd -f $work/input.tar.gz"
+      cmd="$cmd -d OUTPUT $work/$job_name/out"
+      cmd="$cmd --append_condor_requirements='(TARGET.GLIDEIN_Site isnt \"UCSD\")'"
+      cmd="$cmd -f $data_path"
+      cmd="$cmd file://`which $work/$job_name/gridrun_data.sh` $nevents $run_num $data_file"
+      echo "$cmd"
+      $cmd
+    else
+      mkdir -p $work/$job_name/input
+      rsync -av $work/input.tar.gz $data_path  $work/$job_name/input
+      cd $work/$job_name/
+      $work/$job_name/gridrun_data.sh $nevents $run_num $data_file | tee $work/$job_name/log/log.txt
+      cd -
+    fi
+  done
+done 2>&1 | tee log_gridsub.txt

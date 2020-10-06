@@ -7,7 +7,7 @@ R__LOAD_LIBRARY(libktracker)
 R__LOAD_LIBRARY(libonlmonserver)
 R__LOAD_LIBRARY(libdecoder_maindaq)
 
-int splitDST(const int nEvents = 0,const int run = 1789){
+int splitDST(const int run = 1784, const int nEvents = 0){
 
  Fun4AllServer* se = Fun4AllServer::instance();
  se->Verbosity(0);
@@ -16,8 +16,10 @@ int splitDST(const int nEvents = 0,const int run = 1789){
  in->fileopen(Form("/data2/e1039/dst/run_%06i_spin.root",run));
  se->registerInputManager(in);
 
-  Fun4AllSpillDstOutputManager* out_sp = new Fun4AllSpillDstOutputManager("spill");
-  out_sp->SetSpillStep(750);
+  string dir_out = gSystem->ExpandPathName("/pnfs/e906/persistent/users/$USER/DstRun");
+  gSystem->mkdir(dir_out.c_str(), true);
+  Fun4AllSpillDstOutputManager* out_sp = new Fun4AllSpillDstOutputManager(dir_out.c_str());
+  out_sp->SetSpillStep(10); // (750);
   se->registerOutputManager(out_sp);
 
   se->run(nEvents);
