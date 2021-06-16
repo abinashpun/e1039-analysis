@@ -15,6 +15,8 @@
 #include <TSQLRow.h>
 #include <TMatrixD.h>
 #include <TVector3.h>
+#include <TLorentzVector.h>
+#include <ktracker/SRecEvent.h>
 
 // Fun4All includes
 #include <fun4all/SubsysReco.h>
@@ -35,6 +37,7 @@ class SQEvent;
 class SQHitMap;
 class SQHitVector;
 class SQHit;
+class SQDimuonVector;
 
 class PHG4TruthInfoContainer;
 class PHG4HitContainer;
@@ -57,6 +60,8 @@ class AnaTrkQA: public SubsysReco {
   int InitRun(PHCompositeNode *topNode);
   int process_event(PHCompositeNode *topNode);
   int End(PHCompositeNode *topNode);
+
+  void set_legacy_rec_container(bool b) { legacyContainer = b; }
 
   int InitEvalTree();
   int ResetEvalVars();
@@ -82,6 +87,9 @@ class AnaTrkQA: public SubsysReco {
   int GetNodes(PHCompositeNode *topNode);
 
   int TruthRecoEval(PHCompositeNode *topNode);
+  int DimuonInfo(PHCompositeNode* topNode);
+
+  bool legacyContainer;
   
   bool FindG4HitAtStation(const int trk_id, const PHG4HitContainer* g4hc, TVector3* pos, TLorentzVector* mom);
   int  FindCommonHitIDs(std::vector<int>& hitidvec1, std::vector<int>& hitidvec2);
@@ -101,6 +109,10 @@ class AnaTrkQA: public SubsysReco {
 
   PHG4TruthInfoContainer* _truth;
   SRecEvent* _recEvent;
+
+  // dimuon vectors
+  SQDimuonVector* dimuonVector;
+  SQDimuonVector* recDimuonVector;
 
   PHG4HitContainer *g4hc_d1x;
   PHG4HitContainer *g4hc_d2xp;
@@ -128,8 +140,9 @@ class AnaTrkQA: public SubsysReco {
   std::string _out_name;
 	
   TTree* _tout_reco;
-  TTree* _qa_tree;
-  TFile *file;
+  TTree* tree1;
+  TTree* tree2;
+  TFile* file;
 
   int run_id;
   int spill_id;
@@ -140,134 +153,96 @@ class AnaTrkQA: public SubsysReco {
   unsigned short emu_trigger;
 
   int n_hits;
-  int nhits_st1[100];
-  int nhits_st2[100];
-  int nhits_st3[100];
-  int hit_id[100];
-  int detector_id[100];
-  int element_id[100];
-  int hodo_mask[100];
-  float drift_distance[100];
-  float pos[100];
-  float detector_z[100];
+  int nhits_st1;
+  int nhits_st2;
+  int nhits_st3;
+  int hit_id;
+  int detector_id;
+  int element_id;
+  int hodo_mask;
+  float drift_distance;
+  float pos;
+  float detector_z;
 
-  float truth_x[100];
-  float truth_y[100];
-  float truth_z[100];
-  float truth_pos[100];
+  float truth_x;
+  float truth_y;
+  float truth_z;
+  float truth_pos;
 
   int n_tracks;
   int n_recTracks;
-  int rec_id[100];
-  int par_id[100];
-  int pid[100];
+  int rec_id;
+  int par_id;
+  int pid;
 
-  float gvx[100];
-  float gvy[100];
-  float gvz[100];
-  float gpx[100];
-  float gpy[100];
-  float gpz[100];
-  float gx_st1[100];
-  float gy_st1[100];
-  float gz_st1[100];
-        
-  float ac_gpx[100];
-  float ac_gpy[100];
-  float ac_gpz[100];  
-   
-  float sq_pos_st1[100];
-  float sq_drift_st1[100];
-  float sq_decID[100];        
-  float sq_x_st1[100];
-  float sq_y_st1[100];
-  float sq_z_st1[100];
-  float sq_px_st1[100];
-  float sq_py_st1[100];
-  float sq_pz_st1[100];
+  float gx_st1;
+  float gy_st1;
+  float gz_st1;
 
+  float sq_drift_st1;
+  float sq_decID;
 
-  float sq_pos_st2[100];
-  float sq_drift_st2[100];
-  float sq_x_st2[100];
-  float sq_y_st2[100];
-  float sq_z_st2[100];
-  float sq_px_st2[100];
-  float sq_py_st2[100];
-  float sq_pz_st2[100];
+  float sq_drift_st2;
+  float sq_drift_st3;
 
-
-  float sq_pos_st3[100];
-  float sq_drift_st3[100];
-  float sq_x_st3[100];
-  float sq_y_st3[100];
-  float sq_z_st3[100];
-  float sq_px_st3[100];
-  float sq_py_st3[100];
-  float sq_pz_st3[100];
-
-
-  float chisq_st1[100];
-  float prob_st1[100];
-  float quality[100];
-  float fit_time[100];
+  float chisq_st1;
+  float prob_st1;
+  float quality;
+  float fit_time;
   
-  float pull_q2p_st1[100];  
-  float pull_q2p_st2[100];
-  float pull_q2p_st3[100];
+  float pull_q2p_st1;
+  float pull_q2p_st2;
+  float pull_q2p_st3;
 
+  float rec_drift_st1;
+  float rec_drift_st2;
+  float rec_drift_st3;
 
-  float rec_drift_st1[100];
-  float rec_px_st1[100];
-  float rec_py_st1[100];
-  float rec_pz_st1[100];
-  float rec_p_st1[100];
-  float rec_x_st1[100];
-  float rec_y_st1[100];  	
-  float rec_z_st1[100];
+  TVector3* gpos;
+  TVector3* gmom;
+  TVector3* rec_mom;
+  TVector3* rec_pos;
 
-  float rec_drift_st2[100];
-  float rec_px_st2[100];
-  float rec_py_st2[100];
-  float rec_pz_st2[100];
-  float rec_p_st2[100];
-  float rec_x_st2[100];
-  float rec_y_st2[100];
-  float rec_z_st2[100];
+  TVector3* ac_mom;
 
+  TVector3* sq_pos_st1;
+  TVector3* sq_mom_st1;
+  TVector3* sq_pos_st2;
+  TVector3* sq_mom_st2;
+  TVector3* sq_pos_st3;
+  TVector3* sq_mom_st3;
+  TVector3* rec_mom_st1;
+  TVector3* rec_pos_st1;
+  TVector3* rec_pos_st2;
+  TVector3* rec_mom_st2;
+  TVector3* rec_pos_st3;
+  TVector3* rec_mom_st3;
 
-  float rec_drift_st3[100];
-  float rec_px_st3[100];
-  float rec_py_st3[100];
-  float rec_pz_st3[100];
-  float rec_p_st3[100];
-  float rec_x_st3[100];
-  float rec_y_st3[100];
-  float rec_z_st3[100];
-     
-  float gpx_st1[100];
-  float gpy_st1[100];
-  float gpz_st1[100];
-  float gpt[100];
-  float geta[100];
-  float gphi[100];
-  int gnhits[100];
-  int gndc[100];
-  int gnhodo[100];
-  int gnprop[100];
-  int gndp[100];
-  int ntruhits[100];
-  int nhits[100];
-  int charge[100];
-  float rec_vx[100];
-  float rec_vy[100];
-  float rec_vz[100];
-  float rec_px[100];
-  float rec_py[100];
-  float rec_pz[100];
-  float rec_pt[100];
-  float rec_eta[100];
-  float rec_phi[100];
+// dimuon info
+
+double mass;
+TVector3* vtx;
+TVector3* pmom;
+TVector3* nmom;
+
+double rec_mass;
+TVector3* rec_pmom;
+TVector3* rec_nmom;
+TVector3* rec_ppos;
+TVector3* rec_npos;
+TVector3* rec_vtx;
+
+  float gpx_st1;
+  float gpy_st1;
+  float gpz_st1;
+  int gnhits;
+  int gndc;
+  int gnhodo;
+  int gnprop;
+  int gndp;
+  int ntruhits;
+  int nhits;
+  int charge;
   float pull_state00[100];
 
   int gelmid[1000][128];
