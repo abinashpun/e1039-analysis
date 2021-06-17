@@ -50,8 +50,8 @@
 
 #include <boost/lexical_cast.hpp>
 
-#define NDET 62
-#define LogDebug(exp)		std::cout<<"DEBUG: "  <<__FILE__<<": "<<__LINE__<<": "<< exp << std::endl
+//#define NDET 62
+//#define LogDebug(exp)		std::cout<<"DEBUG: "  <<__FILE__<<": "<<__LINE__<<": "<< exp << std::endl
 #define LogError(exp)		std::cout<<"ERROR: "  <<__FILE__<<": "<<__LINE__<<": "<< exp << std::endl
 #define LogWarning(exp)	    std::cout<<"WARNING: "<<__FILE__<<": "<<__LINE__<<": "<< exp << std::endl
 
@@ -94,8 +94,7 @@ int AnaTrkQA::InitRun(PHCompositeNode* topNode) {
 int AnaTrkQA::process_event(PHCompositeNode* topNode) {
   
   int ret = Fun4AllReturnCodes::ABORTRUN;
-
-  if(_recEvent) {    
+if(_recEvent) {
     //ret = RecoEval(topNode);
     ret = TruthRecoEval(topNode);
     if (ret != Fun4AllReturnCodes::EVENT_OK) return ret;
@@ -451,7 +450,9 @@ int AnaTrkQA:: DimuonInfo(PHCompositeNode* topNode){
     *pmom = dimuon->get_mom_pos().Vect();
     *nmom = dimuon->get_mom_neg().Vect();
     //xsec = mcEvent->get_cross_section();
-
+    if(AllChamberPlaneHits(dimuon->get_track_id_pos(), _hit_vector) && AllChamberPlaneHits(dimuon->get_track_id_pos(), _hit_vector)) mass_acc =  mass;
+    //if(!AllChamberPlaneHits(dimuon->get_track_id_pos(), _hit_vector)) Fun4AllReturnCodes::DISCARDEVENT;
+    //if(!AllChamberPlaneHits(dimuon->get_track_id_neg(), _hit_vector)) Fun4AllReturnCodes::DISCARDEVENT; 
     //std::cout << "mass : " << mass << std::endl;
 
     int recid = dimuon->get_rec_dimuon_id();
@@ -500,7 +501,7 @@ int AnaTrkQA::InitEvalTree() {
   PHTFileServer::get().open(_out_name.c_str(), "RECREATE");
 
   ///For track tree ======================
-  tree1 = new TTree("tree1", "track info");
+  tree1 = new TTree("track", "track info");
 
   tree1->Branch("event_id",      &event_id,           "event_id/I");
   tree1 -> Branch("pid",           &pid,                 "pid/I");
@@ -563,11 +564,12 @@ int AnaTrkQA::InitEvalTree() {
   tree1->Branch("charge",        &charge,              "charge/I");
 
   // dimuon tree
-  tree2 = new TTree("tree2", "dimuon info");
+  tree2 = new TTree("dimuon", "dimuon info");
   tree2 -> Branch("event_id", &event_id, "event_id/I");
   tree2 -> Branch("n_tracks",      &n_tracks,           "n_tracks/I");
   tree2 -> Branch("n_recTracks",   &n_recTracks,        "n_recTracks/I");
   tree2->Branch("mass", &mass, "mass/D");
+  tree2->Branch("mass_acc", &mass_acc, "mass_acc/D");
   tree2->Branch("rec_mass", &rec_mass, "rec_mass/D");
   tree2->Branch("vtx", &vtx, 256000, 99);
   tree2->Branch("pmom", &pmom, 256000, 99);
@@ -582,14 +584,14 @@ int AnaTrkQA::InitEvalTree() {
 }
 
 int AnaTrkQA::ResetEvalVars() {
-  run_id = 9999;
-  spill_id = 9999;
-  target_pos = 9999.;
+  run_id = -9999;
+  spill_id = -9999;
+  target_pos = -9999.;
   //event_id = std::numeric_limits<int>::max();;
   emu_trigger = 0;
-  krecstat = 9999;
+  krecstat = -9999;
 
-  n_hits = 0;
+    n_hits = 0;
     detector_id    = 9999;
     element_id     = 9999;
     hodo_mask      = 9999;
@@ -666,17 +668,18 @@ int AnaTrkQA::ResetEvalVars() {
     gmom = new TVector3(9999., 9999., 9999.);
 
     // dimuon info
-    mass = 9999.;
-    vtx = new TVector3(9999., 9999., 9999.);
-    pmom = new TVector3(9999., 9999., 9999.);
-    nmom = new TVector3(9999., 9999., 9999.);
+    mass = -9999.;
+    mass_acc = -9999.;
+    vtx = new TVector3(-9999., -9999., -9999.);
+    pmom = new TVector3(-9999., -9999., -9999.);
+    nmom = new TVector3(-9999., -9999., -9999.);
 
-    rec_mass = 9999.;
-    rec_pmom = new TVector3(9999., 9999., 9999.);
-    rec_nmom = new TVector3(9999., 9999., 9999.);
-    rec_ppos = new TVector3(9999., 9999., 9999.);
-    rec_npos = new TVector3(9999., 9999., 9999.);
-    rec_vtx = new TVector3(9999., 9999., 9999.);
+    rec_mass = -9999.;
+    rec_pmom = new TVector3(-9999., -9999., -9999.);
+    rec_nmom = new TVector3(-9999., -9999., -9999.);
+    rec_ppos = new TVector3(-9999., -9999., -9999.);
+    rec_npos = new TVector3(-9999., -9999., -9999.);
+    rec_vtx = new TVector3(-9999., -9999., -9999.);
 
   return 0;
 }
@@ -869,5 +872,62 @@ bool AnaTrkQA::FindG4HitAtProp(const int trk_id, const PHG4HitContainer* g4hc)
     }
   }
   return false;
+}
+
+bool AnaTrkQA::AllChamberPlaneHits(const int trk_id, SQHitVector *_hit_vector )
+{
+  bool D0Xhit, D0Xphit, D0Vhit, D0Vphit, D0Uhit, D0Uphit, D2Xhit, D2Xphit, D2Uhit, D2Uphit, D2Vhit, D2Vphit, D3pXhit, D3pXphit, D3pUhit, D3pUphit, D3pVhit, D3pVphit, D3mXhit, D3mXphit, D3mUhit, D3mUphit, D3mVhit, D3mVphit;
+
+  D0Xhit = D0Xphit = D0Vhit =D0Vphit= D0Uhit= D0Uphit= D2Xhit= D2Xphit= D2Uhit= D2Uphit= D2Vhit= D2Vphit= D3pXhit= D3pXphit= D3pUhit= D3pUphit= D3pVhit= D3pVphit= D3mXhit= D3mXphit= D3mUhit= D3mUphit= D3mVhit= D3mVphit = false;
+ 
+
+        for(int ihit=0; ihit<_hit_vector->size(); ++ihit) {
+          SQHit *sqhit = _hit_vector->at(ihit);
+        	if(sqhit->get_track_id() == trk_id){
+        		if(sqhit->get_detector_id() == 1 ) D0Uhit=true;
+        if(sqhit->get_detector_id() == 2 ) D0Uphit=true;
+        if(sqhit->get_detector_id() == 3 ) D0Xphit=true;
+        if(sqhit->get_detector_id() == 4 ) D0Xhit=true;
+        if(sqhit->get_detector_id() == 5 ) D0Vhit=true;
+        if(sqhit->get_detector_id() == 6 ) D0Vphit=true;
+
+        if(sqhit->get_detector_id() == 13) D2Vhit=true;
+        if(sqhit->get_detector_id() == 14) D2Vphit=true;
+        if(sqhit->get_detector_id() == 15) D2Xphit=true;
+        if(sqhit->get_detector_id() == 16) D2Xhit=true;
+        if(sqhit->get_detector_id() == 17) D2Uhit=true;
+        if(sqhit->get_detector_id() == 18) D2Uphit=true;
+
+        if(sqhit->get_detector_id() == 19) D3pVphit=true;
+        if(sqhit->get_detector_id() == 20) D3pVhit=true;
+        if(sqhit->get_detector_id() == 21) D3pXphit=true;
+        if(sqhit->get_detector_id() == 22) D3pXhit=true;
+        if(sqhit->get_detector_id() == 23) D3pUphit=true;
+        if(sqhit->get_detector_id() == 24) D3pUhit=true;
+
+        if(sqhit->get_detector_id() == 25) D3mVphit=true;
+        if(sqhit->get_detector_id() == 26) D3mVhit=true;
+        if(sqhit->get_detector_id() == 27) D3mXphit=true;
+        if(sqhit->get_detector_id() == 28) D3mXhit=true;
+        if(sqhit->get_detector_id() == 29) D3mUphit=true;
+        if(sqhit->get_detector_id() == 30) D3mUhit=true;
+      }    
+    }
+
+ st1hit = false;
+ st2hit = false;
+ st3phit = false;
+ st3mhit = false;
+ st3hit = false;
+
+ st1hit = D0Uhit && D0Uphit && D0Xphit && D0Xhit && D0Vhit && D0Vphit;
+ st2hit = D2Uhit && D2Uphit && D2Xphit && D2Xhit && D2Vhit && D2Vphit;
+ st3phit = D3pUhit && D3pUphit && D3pXphit && D3pXhit && D3pVhit && D3pVphit;
+ st3mhit = D3mUhit && D3mUphit && D3mXphit && D3mXhit && D3mVhit && D3mVphit;
+ st3hit = st3phit || st3mhit;
+
+  if (st3phit && st3mhit) return false;
+  else if(st1hit && st2hit && st3hit) return true;
+  else return false;
 }
 

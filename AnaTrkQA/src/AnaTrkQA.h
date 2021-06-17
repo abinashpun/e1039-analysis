@@ -96,7 +96,9 @@ class AnaTrkQA: public SubsysReco {
   SRecTrack* FindBestMomRecTrack(SRecEvent *recEvent, const float true_P); 
   bool FindG4HitAtHodo(const int trk_id, const PHG4HitContainer* g4hc);
   bool FindG4HitAtProp(const int trk_id, const PHG4HitContainer* g4hc);
- 
+  bool AllChamberPlaneHits(const int trk_id, SQHitVector *_hit_vector); 
+
+
   std::string _hit_container_type;
 
   size_t _event;
@@ -220,17 +222,18 @@ class AnaTrkQA: public SubsysReco {
 
 // dimuon info
 
-double mass;
-TVector3* vtx;
-TVector3* pmom;
-TVector3* nmom;
+ double mass;	
+ TVector3* vtx;
+ TVector3* pmom;
+ TVector3* nmom;
+ double mass_acc;
 
-double rec_mass;
-TVector3* rec_pmom;
-TVector3* rec_nmom;
-TVector3* rec_ppos;
-TVector3* rec_npos;
-TVector3* rec_vtx;
+ double rec_mass;
+ TVector3* rec_pmom;
+ TVector3* rec_nmom;
+ TVector3* rec_ppos;
+ TVector3* rec_npos;
+ TVector3* rec_vtx;
 
   float gpx_st1;
   float gpy_st1;
@@ -248,6 +251,11 @@ TVector3* rec_vtx;
   int gelmid[1000][128];
 
 
+ bool st1hit;
+ bool st2hit;
+ bool st3phit;
+ bool st3mhit;
+ bool st3hit;
 
   GeomSvc *p_geomSvc;
 };
