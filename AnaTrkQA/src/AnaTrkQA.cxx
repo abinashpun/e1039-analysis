@@ -450,7 +450,7 @@ int AnaTrkQA:: DimuonInfo(PHCompositeNode* topNode){
     *pmom = dimuon->get_mom_pos().Vect();
     *nmom = dimuon->get_mom_neg().Vect();
     //xsec = mcEvent->get_cross_section();
-    if(AllChamberPlaneHits(dimuon->get_track_id_pos(), _hit_vector) && AllChamberPlaneHits(dimuon->get_track_id_pos(), _hit_vector)) mass_acc =  mass;
+    if(AllChamberPlaneHits(dimuon->get_track_id_pos(), _hit_vector) && AllChamberPlaneHits(dimuon->get_track_id_neg(), _hit_vector)) mass_acc =  mass;
     //if(!AllChamberPlaneHits(dimuon->get_track_id_pos(), _hit_vector)) Fun4AllReturnCodes::DISCARDEVENT;
     //if(!AllChamberPlaneHits(dimuon->get_track_id_neg(), _hit_vector)) Fun4AllReturnCodes::DISCARDEVENT; 
     //std::cout << "mass : " << mass << std::endl;
