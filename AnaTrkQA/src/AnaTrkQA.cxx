@@ -883,36 +883,36 @@ bool AnaTrkQA::AllChamberPlaneHits(const int trk_id, SQHitVector *_hit_vector )
 
         for(int ihit=0; ihit<_hit_vector->size(); ++ihit) {
           SQHit *sqhit = _hit_vector->at(ihit);
-        	if(sqhit->get_track_id() == trk_id){
-        		if(sqhit->get_detector_id() == 1 ) D0Uhit=true;
-        if(sqhit->get_detector_id() == 2 ) D0Uphit=true;
-        if(sqhit->get_detector_id() == 3 ) D0Xphit=true;
-        if(sqhit->get_detector_id() == 4 ) D0Xhit=true;
-        if(sqhit->get_detector_id() == 5 ) D0Vhit=true;
-        if(sqhit->get_detector_id() == 6 ) D0Vphit=true;
+            if(sqhit->get_track_id() == trk_id){
+              if(sqhit->get_detector_id() == 1 ) D0Uhit=true;
+              if(sqhit->get_detector_id() == 2 ) D0Uphit=true;
+              if(sqhit->get_detector_id() == 3 ) D0Xphit=true;
+              if(sqhit->get_detector_id() == 4 ) D0Xhit=true;
+              if(sqhit->get_detector_id() == 5 ) D0Vhit=true;
+              if(sqhit->get_detector_id() == 6 ) D0Vphit=true;
 
-        if(sqhit->get_detector_id() == 13) D2Vhit=true;
-        if(sqhit->get_detector_id() == 14) D2Vphit=true;
-        if(sqhit->get_detector_id() == 15) D2Xphit=true;
-        if(sqhit->get_detector_id() == 16) D2Xhit=true;
-        if(sqhit->get_detector_id() == 17) D2Uhit=true;
-        if(sqhit->get_detector_id() == 18) D2Uphit=true;
+              if(sqhit->get_detector_id() == 13) D2Vhit=true;
+              if(sqhit->get_detector_id() == 14) D2Vphit=true;
+              if(sqhit->get_detector_id() == 15) D2Xphit=true;
+              if(sqhit->get_detector_id() == 16) D2Xhit=true;
+              if(sqhit->get_detector_id() == 17) D2Uhit=true;
+              if(sqhit->get_detector_id() == 18) D2Uphit=true;
 
-        if(sqhit->get_detector_id() == 19) D3pVphit=true;
-        if(sqhit->get_detector_id() == 20) D3pVhit=true;
-        if(sqhit->get_detector_id() == 21) D3pXphit=true;
-        if(sqhit->get_detector_id() == 22) D3pXhit=true;
-        if(sqhit->get_detector_id() == 23) D3pUphit=true;
-        if(sqhit->get_detector_id() == 24) D3pUhit=true;
+              if(sqhit->get_detector_id() == 19) D3pVphit=true;
+              if(sqhit->get_detector_id() == 20) D3pVhit=true;
+              if(sqhit->get_detector_id() == 21) D3pXphit=true;
+              if(sqhit->get_detector_id() == 22) D3pXhit=true;
+              if(sqhit->get_detector_id() == 23) D3pUphit=true;
+              if(sqhit->get_detector_id() == 24) D3pUhit=true;
 
-        if(sqhit->get_detector_id() == 25) D3mVphit=true;
-        if(sqhit->get_detector_id() == 26) D3mVhit=true;
-        if(sqhit->get_detector_id() == 27) D3mXphit=true;
-        if(sqhit->get_detector_id() == 28) D3mXhit=true;
-        if(sqhit->get_detector_id() == 29) D3mUphit=true;
-        if(sqhit->get_detector_id() == 30) D3mUhit=true;
-      }    
-    }
+              if(sqhit->get_detector_id() == 25) D3mVphit=true;
+              if(sqhit->get_detector_id() == 26) D3mVhit=true;
+              if(sqhit->get_detector_id() == 27) D3mXphit=true;
+              if(sqhit->get_detector_id() == 28) D3mXhit=true;
+              if(sqhit->get_detector_id() == 29) D3mUphit=true;
+              if(sqhit->get_detector_id() == 30) D3mUhit=true;
+        }    
+      }
 
  st1hit = false;
  st2hit = false;
