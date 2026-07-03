@@ -1,0 +1,9 @@
+build
+inst
+*~
+*.bak
+*.swp
+*.png
+*.jpg
+*.pdf
+*.root

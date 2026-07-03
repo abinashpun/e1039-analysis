@@ -1,0 +1,8 @@
+build
+inst
+*.png
+*.root
+
+macro*/scratch
+macro*/data
+

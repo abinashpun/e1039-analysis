@@ -1,0 +1,12 @@
+build/
+inst/
+*~
+*.bak
+*.swp
+*.png
+*.root
+macro_*/scratch
+macro_*/data
+macro_*/result
+
+!macro_full_bg/e906_rf00.root

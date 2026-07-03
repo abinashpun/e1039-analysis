@@ -4,26 +4,28 @@ R__LOAD_LIBRARY(libinterface_main)
 R__LOAD_LIBRARY(libfun4all)
 R__LOAD_LIBRARY(libg4detectors)
 R__LOAD_LIBRARY(libg4eval)
+R__LOAD_LIBRARY(libcalibrator)
 R__LOAD_LIBRARY(libktracker)
 
 /*
 This macro takes severl external input files to run:
 1. geom.root is the standard geometry dump from running the Fun4Sim macro;
-2. data.root should be the DST file generated either by decoder or by 
+2. `DST_in` (data.root) should be the DST file generated either by decoder or by simulation.
 
 This is an example script intended to demonstrate how to run SQReco in a minimalistic fashion, it is NOT
 suitable for production use and users should develop their own reconstruction macro for their own analysis.
 */
 
-int RecoE1039Data(const int nEvents = 1)
+int RecoE1039Data(const int run_id, const std::string DST_in="data.root", const int nEvents = 1)
 {
   const bool cosmic = true;
 
   const bool legacy_rec_container = false;
-  const double FMAGSTR = -1.054;
-  const double KMAGSTR = -0.951;
+  const double FMAGSTR = -1.044;
+  const double KMAGSTR = -1.025;
 
   recoConsts* rc = recoConsts::instance();
+  rc->set_IntFlag("RUNNUMBER", run_id);
   rc->set_DoubleFlag("FMAGSTR", FMAGSTR);
   rc->set_DoubleFlag("KMAGSTR", KMAGSTR);
   if(cosmic)
@@ -38,8 +40,10 @@ int RecoE1039Data(const int nEvents = 1)
   Fun4AllServer* se = Fun4AllServer::instance();
   se->Verbosity(0);
 
-  GeomSvc::UseDbSvc(true);  
-  GeomSvc* geom_svc = GeomSvc::instance();
+  //GeomSvc* geom_svc = GeomSvc::instance();
+
+  CalibDriftDist* cal_dd = new CalibDriftDist();
+  se->registerSubsystem(cal_dd);
 
   SQReco* reco = new SQReco();
   reco->Verbosity(0);
@@ -48,7 +52,7 @@ int RecoE1039Data(const int nEvents = 1)
   reco->set_enable_KF(true); //Kalman filter not needed for the track finding, disabling KF saves a lot of initialization time
   reco->setInputTy(SQReco::E1039);    //options are SQReco::E906 and SQReco::E1039
   reco->setFitterTy(SQReco::KFREF);  //not relavant for the track finding
-  reco->set_evt_reducer_opt("e"); //if not provided, event reducer will be using JobOptsSvc to intialize; to turn off, set it to "none"
+  reco->set_evt_reducer_opt("none"); //if not provided, event reducer will be using JobOptsSvc to intialize; to turn off, set it to "none"
   reco->set_enable_eval(true);
   reco->set_eval_file_name("eval.root");
   if(cosmic) reco->add_eval_list(3);    //output of cosmic reco is contained in the eval output for now
@@ -56,7 +60,7 @@ int RecoE1039Data(const int nEvents = 1)
 
   Fun4AllInputManager* in = new Fun4AllDstInputManager("DSTIN");
   in->Verbosity(0);
-  in->fileopen("data.root");
+  in->fileopen(DST_in.c_str());
   se->registerInputManager(in);
 
   Fun4AllDstOutputManager* out = new Fun4AllDstOutputManager("DSTOUT", "result.root");

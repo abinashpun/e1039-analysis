@@ -25,10 +25,14 @@ suitable for production use and users should develop their own reconstruction ma
 
 int RecoE1039Sim(const int nevent = 10, TString prefix = "run", int seed = 12345)
 {
+  //! particle gen flag
   const bool cosmic = false;
   const bool dimuon = false && (!cosmic);
   const bool single = (!dimuon) && (!cosmic);
   const bool jpsi   = false;
+  
+  //! vtx gen flag
+  const bool legacyVtxGen = true;
 
   const bool legacy_rec_container = false;
 
@@ -51,8 +55,8 @@ int RecoE1039Sim(const int nevent = 10, TString prefix = "run", int seed = 12345
   rc->set_DoubleFlag("FMAGSTR", FMAGSTR);
   rc->set_DoubleFlag("KMAGSTR", KMAGSTR);
   rc->set_IntFlag("RANDOMSEED", seed);
-  rc->set_DoubleFlag("SIGX_BEAM", 2.);
-  rc->set_DoubleFlag("SIGY_BEAM", 2.);
+  rc->set_DoubleFlag("SIGX_BEAM", .3);
+  rc->set_DoubleFlag("SIGY_BEAM", .3);
   if(cosmic)
   {
     rc->init("cosmic");
@@ -60,9 +64,16 @@ int RecoE1039Sim(const int nevent = 10, TString prefix = "run", int seed = 12345
     rc->set_DoubleFlag("KMAGSTR", 0.);
     rc->set_DoubleFlag("FMAGSTR", 0.);
   }
+
+  //! flag to choose target only or dump only for vtx gen
+  if(legacyVtxGen)
+  {
+    rc->set_BoolFlag("TARGETONLY", false);
+    rc->set_BoolFlag("DUMPONLY", false);
+  }
+
   rc->Print();
 
-  GeomSvc::UseDbSvc(true);
   GeomSvc* geom_svc = GeomSvc::instance();
   geom_svc->printTable();
 
@@ -78,7 +89,10 @@ int RecoE1039Sim(const int nevent = 10, TString prefix = "run", int seed = 12345
     else
       pythia8->set_config_file("support/phpythia8_DY.cfg");
 
-    pythia8->set_vertex_distribution_mean(0, 0, target_coil_pos_z, 0);
+    if (legacyVtxGen) pythia8->enableLegacyVtxGen();
+    else{
+      pythia8->set_vertex_distribution_mean(0, 0, target_coil_pos_z, 0);
+    }
     se->registerSubsystem(pythia8);
 
     pythia8->set_trigger_AND();
@@ -104,11 +118,14 @@ int RecoE1039Sim(const int nevent = 10, TString prefix = "run", int seed = 12345
   {
     PHG4SimpleEventGenerator* genp = new PHG4SimpleEventGenerator("MUP"); 
     genp->add_particles("mu+", 1);  // mu+,e+,proton,pi+,Upsilon
-    genp->set_vertex_distribution_function(PHG4SimpleEventGenerator::Uniform, PHG4SimpleEventGenerator::Uniform, PHG4SimpleEventGenerator::Uniform);
-    genp->set_vertex_distribution_mean(0.0, 0.0, target_coil_pos_z);
-    genp->set_vertex_distribution_width(0.0, 0.0, 0.0);
-    genp->set_vertex_size_function(PHG4SimpleEventGenerator::Uniform);
-    genp->set_vertex_size_parameters(0.0, 0.0);
+    if (legacyVtxGen) genp->enableLegacyVtxGen();
+    else{
+      genp->set_vertex_distribution_function(PHG4SimpleEventGenerator::Uniform, PHG4SimpleEventGenerator::Uniform, PHG4SimpleEventGenerator::Uniform);
+      genp->set_vertex_distribution_mean(0.0, 0.0, target_coil_pos_z);
+      genp->set_vertex_distribution_width(0.0, 0.0, 0.0);
+      genp->set_vertex_size_function(PHG4SimpleEventGenerator::Uniform);
+      genp->set_vertex_size_parameters(0.0, 0.0);
+    }
     genp->set_pxpypz_range(-6., 6., -3. ,3., 25., 100.);
     se->registerSubsystem(genp);
   }
@@ -151,23 +168,18 @@ int RecoE1039Sim(const int nevent = 10, TString prefix = "run", int seed = 12345
   PHG4TruthSubsystem* truth = new PHG4TruthSubsystem();
   g4Reco->registerSubsystem(truth);
 
-  // apply in-acceptance cut
-  RequireParticlesInAcc* inacc = new RequireParticlesInAcc();
-  if(dimuon)
-  {
-    inacc->SetNumParticlesPerEvent(2);
-    se->registerSubsystem(inacc);
-  }
-  else if(single)
-  {
-    inacc->SetNumParticlesPerEvent(1);
-    se->registerSubsystem(inacc);
-  }
-  
   // digitizer
   SQDigitizer* digitizer = new SQDigitizer("Digitizer", 0);
   //digitizer->Verbosity(99);
   se->registerSubsystem(digitizer);
+
+  // apply in-acceptance cut
+  SQGeomAcc* geom_acc = new SQGeomAcc();
+  if     (dimuon) geom_acc->SetMuonMode(SQGeomAcc::PAIR);
+  else if(single) geom_acc->SetMuonMode(SQGeomAcc::SINGLE);
+  geom_acc->SetPlaneMode(SQGeomAcc::HODO_CHAM);
+  geom_acc->SetNumOfH1EdgeElementsExcluded(4);
+  se->registerSubsystem(geom_acc);
 
   // trakcing module
   SQReco* reco = new SQReco();

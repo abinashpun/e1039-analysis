@@ -39,8 +39,8 @@ if [ $is_grid == 1 ]; then
   echo "source /cvmfs/seaquest.opensciencegrid.org/seaquest/software/e1039/this-e1039.sh"
   source /cvmfs/seaquest.opensciencegrid.org/seaquest/software/e1039/this-e1039.sh
 else
-  echo "source /e906/app/software/osg/software/e1039/this-e1039.sh"
-  source /e906/app/software/osg/software/e1039/this-e1039.sh
+  echo "source /exp/seaquest/app/software/osg/software/e1039/this-e1039.sh"
+  source /exp/seaquest/app/software/osg/software/e1039/this-e1039.sh
 fi
 
 # test enviroment

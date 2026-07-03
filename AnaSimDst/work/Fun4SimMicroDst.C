@@ -1,22 +1,37 @@
-/// Fun4SimMicroDst.C:  Fun4all macro to analyze you uDST.
-#if ROOT_VERSION_CODE >= ROOT_VERSION(6,00,0)
+/// Fun4SimMicroDst.C:  Fun4all macro to analyze your uDST.
+//R__LOAD_LIBRARY(libktracker)
 R__LOAD_LIBRARY(libana_sim_dst)
-#endif
 
 int Fun4SimMicroDst(const char* fn_udst="uDST.root")
 {
-  gSystem->Load("libana_sim_dst.so");
-
+  recoConsts *rc = recoConsts::instance();
+  rc->init("Run1");
+  
   Fun4AllServer* se = Fun4AllServer::instance();
-  //se->Verbosity(1);
   Fun4AllInputManager *in = new Fun4AllDstInputManager("SimMicroDst");
   se->registerInputManager(in);
   in->fileopen(fn_udst);
 
-  se->registerSubsystem(new AnaSimDst());
+  //SQReco* reco = new SQReco();
+  //reco->Verbosity(0);
+  //reco->set_legacy_rec_container(false);
+  //reco->set_geom_file_name("geom_20251209.root");
+  //reco->set_enable_KF(true);
+  //reco->setInputTy(SQReco::E1039);
+  //reco->setFitterTy(SQReco::KFREF);
+  //reco->set_evt_reducer_opt("none");
+  //se->registerSubsystem(reco);
+  //
+  //SQVertexing* vtx = new SQVertexing();
+  //se->registerSubsystem(vtx);
+  
+  auto ana = new AnaTrueDimuon();
+  //auto ana = new AnaRecoDimuon();
+  //ana->SetRoadsetID(131);
+  se->registerSubsystem(ana);
 
   se->run();
   se->End();
   delete se;
-  return 0;
+  exit(0);//return 0;
 }

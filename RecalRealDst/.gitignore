@@ -1,0 +1,7 @@
+build
+inst
+scratch
+*.png
+*.root
+work/result/
+work/log/

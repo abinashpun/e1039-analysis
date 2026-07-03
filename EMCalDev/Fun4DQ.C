@@ -129,23 +129,19 @@ int Fun4DQ(const int nevent = 10)
   PHG4TruthSubsystem* truth = new PHG4TruthSubsystem();
   g4Reco->registerSubsystem(truth);
 
-  // apply in-acceptance cut
-  // RequireParticlesInAcc* inacc = new RequireParticlesInAcc();
-  // if(dimuon)
-  // {
-  //   inacc->SetNumParticlesPerEvent(2);
-  // }
-  // else if(single)
-  // {
-  //   inacc->SetNumParticlesPerEvent(1);
-  // }
-  // se->registerSubsystem(inacc);
-
   // digitizer
   SQDigitizer* digitizer = new SQDigitizer("Digitizer", 0);
   //digitizer->Verbosity(99);
   digitizer->registerEMCal("EMCal", 100);
   se->registerSubsystem(digitizer);
+
+  /// apply in-acceptance cut
+  //SQGeomAcc* geom_acc = new SQGeomAcc();
+  //if     (dimuon) geom_acc->SetMuonMode(SQGeomAcc::PAIR);
+  //else if(single) geom_acc->SetMuonMode(SQGeomAcc::SINGLE);
+  //geom_acc->SetPlaneMode(SQGeomAcc::HODO_CHAM);
+  //geom_acc->SetNumOfH1EdgeElementsExcluded(4);
+  //se->registerSubsystem(geom_acc);
 
   // trakcing module
   // SQReco* reco = new SQReco();

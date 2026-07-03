@@ -1,0 +1,6 @@
+*.root
+*.log
+*.tmp
+*.swp
+Fun4AllVectFileManager/build/
+Fun4AllVectFileManager/inst/

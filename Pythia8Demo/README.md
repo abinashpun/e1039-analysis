@@ -4,7 +4,7 @@
 
 On seaquestgpvm01
 ```
-source /e906/app/users/yuhw/setup.sh
+source /exp/seaquest/appa/users/yuhw/setup.sh
 ```
 
 ### checkout analysis repository

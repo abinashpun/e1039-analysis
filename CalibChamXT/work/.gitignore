@@ -1,0 +1,6 @@
+data
+scratch
+calib/[1-9]
+calib/comp
+result
+*.root

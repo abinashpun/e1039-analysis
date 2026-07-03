@@ -15,14 +15,14 @@ fi
 echo "njobs=$njobs"
 echo "nevents=$nevents"
 
-macros=/e906/app/users/yuhw/e1039-analysis/TargetSim
+macros=/exp/seaquest/app/users/$USER/e1039-analysis/TargetSim
 
 sed "s/nevents=NAN/nevents=$nevents/"             $macros/gridrun.sh > $macros/gridrun_new.sh 
 #sed -i "s/gap=NAN/gap=$gap/"                      $macros/gridrun_new.sh
 chmod +x $macros/gridrun_new.sh
 
 if [ $do_sub == 1 ]; then
-work=/pnfs/e906/persistent/users/yuhw/TargetSim/$jobname
+work=/pnfs/e1039/scratch/users/$USER/TargetSim/$jobname
 else
 work=$macros/scratch/$jobname
 fi
@@ -42,17 +42,16 @@ do
 
   rsync -av $macros/gridrun_new.sh $work/$id/gridrun_new.sh
 
-  cmd="jobsub_submit"
-  cmd="$cmd -g --OS=SL6 --use_gftp --resource-provides=usage_model=DEDICATED,OPPORTUNISTIC,OFFSITE -e IFDHC_VERSION --expected-lifetime='short'"
-  cmd="$cmd --mail_never"
-  cmd="$cmd -L $work/$id/log/log.txt"
-  cmd="$cmd -f $work/input.tar.gz"
-  cmd="$cmd -d OUTPUT $work/$id/out"
-  cmd="$cmd file://`which $work/$id/gridrun_new.sh`"
+  CMD="/exp/seaquest/app/software/script/jobsub_submit_spinquest.sh"
+  CMD+=" --expected-lifetime='medium'" # medium=8h, short=3h, long=23h
+  CMD+=" -L $work/$id/log/log.txt"
+  CMD+=" -f $work/input.tar.gz"
+  CMD+=" -d OUTPUT $work/$id/out"
+  CMD+=" file://$work/$id/gridrun_new.sh"
 
   if [ $do_sub == 1 ]; then
-    echo $cmd
-    $cmd
+    echo $CMD
+    $CMD
   else
     mkdir -p $work/$id/input
     rsync -av $work/input.tar.gz $work/$id/input

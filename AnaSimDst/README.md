@@ -42,9 +42,8 @@ The following commands set up the shell environment and compile the code;
 ```
 cd e1039-analysis/AnaSimDst
 source setup.sh
-cd build
-cmake-ana-sim-dst
-make install
+cmake-this
+make-this
 ```
 You are expected to later look into the script and the analysis code to make your own analysis logic.
 
@@ -76,7 +75,18 @@ If all the commands ran fine, you delete `(5)` (or change to `(0)`) in the 1st s
 
 ## Advanced Usage
 
-to be written.
+### `cmake-this`
+
+You should execute this function when you add/delete files under `src/`.
+It is a shell function defined in `setup.sh`.
+It calls 'cmake' with a proper configuration.
+It cleans up all files in the build & install directories.
+
+### `make-this`
+
+You should execute this function when you modify files under `src/`.
+It is a shell function defined in `setup.sh`.
+It calls 'make install' with a proper configuration.
 
 ## Author
 

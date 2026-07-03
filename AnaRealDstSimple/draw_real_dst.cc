@@ -18,18 +18,19 @@
 R__LOAD_LIBRARY(libinterface_main)
 #endif
 
-TTree* GetTree(const int run);
+TTree* GetTree(const int run, const int spill=0);
 void PrintTreeElements(TTree* tree);
 
 /// Main function.
-void draw_real_dst(const int run=318)
+void draw_real_dst(const int run=318, const int spill=0)
 {
   gSystem->Load("libinterface_main.so");
 
-  TTree* tree = GetTree(run);
-  //PrintTreeElements(tree); // Call this function if you want.
+  TTree* tree = GetTree(run, spill);
+  PrintTreeElements(tree); // Call this function to find all variable names.
   tree->SetAlias("event", "DST.SQEvent");
   tree->SetAlias("hit"  , "DST.SQHitVector._vector");
+  //tree->SetAlias("trk"  , "DST.SRecEvent.fAllTracks");
 
   TCanvas* c1 = new TCanvas("c1", "");
   c1->SetGrid();
@@ -48,14 +49,25 @@ void draw_real_dst(const int run=318)
              "event._trigger == 0x4 && hit.get_detector_id() == 13");
   c1->SaveAs("ele_id.png");
 
+  //// Example 3:  Tracks.  Only works on DST afte reconstruction.
+  //tree->Draw("trk.fChisq");
+  //c1->SaveAs("trk_chi2.png");
+
   exit(0);
 }
 
 /// Sub-function to open the ROOT file and get the tree.
-TTree* GetTree(const int run)
+TTree* GetTree(const int run, const int spill)
 {
   ostringstream oss;
-  oss << "/data2/e1039/dst/run_" << setfill('0') << setw(6) << run << "_spin.root";
+  oss << setfill('0') << setw(6) << run;
+  string run6 = oss.str();
+  oss.str("");
+  oss << setw(9) << spill;
+  string spill9 = oss.str();
+
+  oss.str("");
+  oss << "/data2/e1039/dst/run_" << run6 << "/run_" << run6 << "_spill_" << spill9 << "_spin.root";
   string fn_in = oss.str();
   cout << "DST = " << fn_in << endl;
   TFile* file = new TFile(fn_in.c_str());

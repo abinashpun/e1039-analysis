@@ -36,29 +36,33 @@ int Fun4Sim(const int nevent = 10)
   const double target_z = (7.9-target_l)/2.; //cm
   const int use_g4steps = 1;
 
-  const double FMAGSTR = -1.054;
-  const double KMAGSTR = -0.951;
-
-  const bool gen_pythia8  = true; // false;
+  //! Particle generator flag.  Only one of these must be true.
+  const bool gen_pythia8  = false;
   const bool gen_cosmic   = false;
-  const bool gen_gun      = false;
   const bool gen_particle = false;
   const bool read_hepmc   = false;
-  const bool gen_e906legacy = false; //E906LegacyGen()
-  const bool save_in_acc  = false; //< Set true to save only in-acceptance events into DST.
+  const bool gen_e906dim  = true; // cf. SQPrimaryParticleGen
 
+  //! Use SQPrimaryVertexGen or not.
+  const bool SQ_vtx_gen = true;
+  
   recoConsts *rc = recoConsts::instance();
-  rc->set_DoubleFlag("FMAGSTR", FMAGSTR);
-  rc->set_DoubleFlag("KMAGSTR", KMAGSTR);
+  rc->init(5433); // Initialize the geometry, the alignment, the reco config, etc. based on run ID.
+  //rc->set_DoubleFlag("FMAGSTR", -1.044);
+  //rc->set_DoubleFlag("KMAGSTR", -1.025);
   if(gen_cosmic) {
     rc->init("cosmic");
     rc->set_BoolFlag("COARSE_MODE", true);
     rc->set_DoubleFlag("KMAGSTR", 0.);
     rc->set_DoubleFlag("FMAGSTR", 0.);
   }
+  if(SQ_vtx_gen) { // cf. SQPrimaryVertexGen
+    rc->set_CharFlag("VTX_GEN_MATERIAL_MODE", "Target"); // All, Target, Dump, TargetDumpGap or Manual
+    //rc->set_DoubleFlag("VTX_GEN_Z_START",  50.0); // Used only in case of "Manual"
+    //rc->set_DoubleFlag("VTX_GEN_Z_STOP" , 100.0); // used only in case of  "Manual"
+  }
   rc->Print();
 
-  GeomSvc::UseDbSvc(true);
   GeomSvc *geom_svc = GeomSvc::instance();
   //const double x0_shift = 0.0; //cm 
   //std::cout << "D2X::X0: " << geom_svc->getDetectorX0("D2X") << std::endl;
@@ -76,9 +80,12 @@ int Fun4Sim(const int nevent = 10)
   if(gen_pythia8) {    
     PHPythia8 *pythia8 = new PHPythia8();
     //pythia8->Verbosity(99);
-//    pythia8->set_config_file("phpythia8_DY.cfg");
-    pythia8->set_config_file("phpythia8_Jpsi.cfg");
-    pythia8->set_vertex_distribution_mean(0, 0, target_coil_pos_z, 0);
+    pythia8->set_config_file("phpythia8_DY.cfg");
+    //pythia8->set_config_file("phpythia8_Jpsi.cfg"); // Jpsi, Jpsi_direct, psip
+    if(SQ_vtx_gen) pythia8->enableLegacyVtxGen();
+    else{
+      pythia8->set_vertex_distribution_mean(0, 0, target_coil_pos_z, 0);
+    } 
     pythia8->set_embedding_id(1);
     se->registerSubsystem(pythia8);
 
@@ -107,94 +114,76 @@ int Fun4Sim(const int nevent = 10)
     se->registerSubsystem(hr);
   }
 
-  // single gun
-  if(gen_gun) {
-    PHG4ParticleGun *gun = new PHG4ParticleGun("GUN");
-    gun->set_name("mu-");
-    //gun->set_vtx(0, 0, target_coil_pos_z);
-    //gun->set_mom(3, 3, 50);
-    gun->set_vtx(30, 10, 590);
-    gun->set_mom(-0.3, 2, 50);
-    se->registerSubsystem(gun);
-  }
-
   // multi particle gun
   if(gen_particle) {
     PHG4SimpleEventGenerator *genp = new PHG4SimpleEventGenerator("MUP");
     //genp->set_seed(123);
     genp->add_particles("mu+", nmu);  // mu+,e+,proton,pi+,Upsilon
-    genp->set_vertex_distribution_function(PHG4SimpleEventGenerator::Uniform,
+    if (SQ_vtx_gen) genp->enableLegacyVtxGen();
+    else{
+      genp->set_vertex_distribution_function(PHG4SimpleEventGenerator::Uniform,
         PHG4SimpleEventGenerator::Uniform,
         PHG4SimpleEventGenerator::Uniform);
-    genp->set_vertex_distribution_mean(0.0, 0.0, target_coil_pos_z);
-    genp->set_vertex_distribution_width(0.0, 0.0, 0.0);
-    genp->set_vertex_size_function(PHG4SimpleEventGenerator::Uniform);
-    genp->set_vertex_size_parameters(0.0, 0.0);
-
-    if(FMAGSTR>0)
-      //genp->set_pxpypz_range(0,6, -6,6, 10,100);
-      genp->set_pxpypz_range(-3,6, -3,3, 10,100);
-    else
-      //genp->set_pxpypz_range(-6,0, -6,6, 10,100);
-      genp->set_pxpypz_range(-6,3, -3,3, 10,100);
-
+      genp->set_vertex_distribution_mean(0.0, 0.0, target_coil_pos_z);
+      genp->set_vertex_distribution_width(0.0, 0.0, 0.0);
+      genp->set_vertex_size_function(PHG4SimpleEventGenerator::Uniform);
+      genp->set_vertex_size_parameters(0.0, 0.0);
+    }
+    double fmag = rc->get_DoubleFlag("FMAGSTR");
+    if (fmag > 0) genp->set_pxpypz_range(-3,6, -3,3, 10,100);
+    else          genp->set_pxpypz_range(-6,3, -3,3, 10,100);
 
     genp->Verbosity(0);
     se->registerSubsystem(genp);
   }
 
   if(gen_particle) {
-    PHG4SimpleEventGenerator *genm = new PHG4SimpleEventGenerator("MUP");
+    PHG4SimpleEventGenerator *genm = new PHG4SimpleEventGenerator("MUM");
     //genm->set_seed(123);
     genm->add_particles("mu-", nmu);  // mu+,e+,proton,pi+,Upsilon
-    genm->set_vertex_distribution_function(PHG4SimpleEventGenerator::Uniform,
+    if (SQ_vtx_gen) genm->enableLegacyVtxGen();
+    else{
+      genm->set_vertex_distribution_function(PHG4SimpleEventGenerator::Uniform,
         PHG4SimpleEventGenerator::Uniform,
         PHG4SimpleEventGenerator::Uniform);
-    genm->set_vertex_distribution_mean(0.0, 0.0, target_coil_pos_z);
-    genm->set_vertex_distribution_width(0.0, 0.0, 0.0);
-    genm->set_vertex_size_function(PHG4SimpleEventGenerator::Uniform);
-    genm->set_vertex_size_parameters(0.0, 0.0);
-
-    if(FMAGSTR>0)
-      //genm->set_pxpypz_range(-6,0, -6,6, 10,100);
-      genm->set_pxpypz_range(-6,3, -3,3, 10,100);
-    else
-      //genm->set_pxpypz_range(0,6, -6,6, 10,100);
-      genm->set_pxpypz_range(-3,6, -3,3, 10,100);
+      genm->set_vertex_distribution_mean(0.0, 0.0, target_coil_pos_z);
+      genm->set_vertex_distribution_width(0.0, 0.0, 0.0);
+      genm->set_vertex_size_function(PHG4SimpleEventGenerator::Uniform);
+      genm->set_vertex_size_parameters(0.0, 0.0);
+    }
+    double fmag = rc->get_DoubleFlag("FMAGSTR");
+    if (fmag > 0) genm->set_pxpypz_range(-6,3, -3,3, 10,100);
+    else          genm->set_pxpypz_range(-3,6, -3,3, 10,100);
 
     genm->Verbosity(0);
     se->registerSubsystem(genm);
   }
 
   // E906LegacyGen
-  if(gen_e906legacy){
+  if(gen_e906dim){
     SQPrimaryParticleGen *e906legacy = new  SQPrimaryParticleGen();
-    
     const bool pythia_gen = false;
-    const bool drellyan_gen = true;
-    const bool JPsi_gen = false;
+    const bool drellyan_gen = false;
+    const bool JPsi_gen = true;
     const bool Psip_gen = false;  
 
     if(drellyan_gen){
-      e906legacy->set_xfRange(0.1, 0.5); //[-1.,1.]
-      e906legacy->set_massRange(0.23, 10.0);// 0.22 and above     
+      e906legacy->set_xfRange(-0.1, 0.9); //[-1.,1.]
+      e906legacy->set_massRange(1.0, 9.0);
       e906legacy->enableDrellYanGen();
     }
-   
-   
     if(Psip_gen){ 
-      e906legacy->set_xfRange(0.1, 0.5); //[-1.,1.]
+      e906legacy->set_xfRange(0.2, 1.0); //[-1.,1.]
       e906legacy->enablePsipGen();
     }
-
-
     if(JPsi_gen){
-      e906legacy->set_xfRange(0.1, 0.5); //[-1.,1.]
+      e906legacy->set_xfRange(0.2, 1.0); //[-1.,1.]
       e906legacy->enableJPsiGen();
     }
-    
-    if(pythia_gen) e906legacy->enablePythia();
-
+    if(pythia_gen){ 
+      e906legacy->enablePythia();
+      e906legacy->set_config_file("phpythia8_DY.cfg");
+    }
     se->registerSubsystem(e906legacy);
   }
 
@@ -206,14 +195,7 @@ int Fun4Sim(const int nevent = 10)
   // Fun4All G4 module
   PHG4Reco *g4Reco = new PHG4Reco();
   //PHG4Reco::G4Seed(123);
-  //g4Reco->set_field(5.);
-  g4Reco->set_field_map(
-      rc->get_CharFlag("fMagFile")+" "+
-      rc->get_CharFlag("kMagFile")+" "+
-      Form("%f",FMAGSTR) + " " +
-      Form("%f",KMAGSTR) + " " +
-      "5.0",
-      PHFieldConfig::RegionalConst);
+  g4Reco->set_field_map();
   // size of the world - every detector has to fit in here
   g4Reco->SetWorldSizeX(1000);
   g4Reco->SetWorldSizeY(1000);
@@ -240,8 +222,6 @@ int Fun4Sim(const int nevent = 10)
 
   se->registerSubsystem(g4Reco);
 
-  if (save_in_acc) se->registerSubsystem(new RequireParticlesInAcc());
-
   // save truth info to the Node Tree
   PHG4TruthSubsystem *truth = new PHG4TruthSubsystem();
   g4Reco->registerSubsystem(truth);
@@ -252,6 +232,13 @@ int Fun4Sim(const int nevent = 10)
   digitizer->set_enable_st1dc(do_station1DC);    // these two lines need to be in sync with the parameters used
   digitizer->set_enable_dphodo(do_dphodo);       // in the SetupSensitiveVolumes() function call above
   se->registerSubsystem(digitizer);
+
+  /// Save only events that are in the geometric acceptance.
+  SQGeomAcc* geom_acc = new SQGeomAcc();
+  geom_acc->SetMuonMode(SQGeomAcc::PAIR_TBBT); // PAIR, PAIR_TBBT, SINGLE, SINGLE_T, etc.
+  geom_acc->SetPlaneMode(SQGeomAcc::HODO_CHAM); // HODO, CHAM or HODO_CHAM
+  geom_acc->SetNumOfH1EdgeElementsExcluded(4); // Exclude 4 elements at H1 edges
+  se->registerSubsystem(geom_acc);
 
   // Make SQ nodes for truth info
   se->registerSubsystem(new TruthNodeMaker());
@@ -270,22 +257,21 @@ int Fun4Sim(const int nevent = 10)
   }
 
   // Trigger Emulator
-  DPTriggerAnalyzer* dptrigger = new DPTriggerAnalyzer();
-  dptrigger->set_hit_container_choice("Vector");
-  dptrigger->set_road_set_file_name(gSystem->ExpandPathName("$E1039_RESOURCE/trigger/trigger_67.txt"));
-  //dptrigger->Verbosity(99);
-  se->registerSubsystem(dptrigger);
+  //DPTriggerAnalyzer* dptrigger = new DPTriggerAnalyzer();
+  //dptrigger->set_road_set_file_name("$E1039_RESOURCE/trigger/trigger_67.txt");
+  //se->registerSubsystem(dptrigger);
 
   // Event Filter
-  EvtFilter *evt_filter = new EvtFilter();
+  //EvtFilter *evt_filter = new EvtFilter();
   //evt_filter->Verbosity(10);
   //evt_filter->set_trigger_req(1<<5);
-  se->registerSubsystem(evt_filter);
+  //se->registerSubsystem(evt_filter);
 
-  // trakcing module
-    // trakcing module
+  // Tracking module
+  //TriggerRoad::verbosity = 10;
   SQReco* reco = new SQReco();
   reco->Verbosity(0);
+  reco->set_legacy_rec_container(false); // default = true
   //reco->set_geom_file_name("support/geom.root"); //not needed as it's created on the fly
   reco->set_enable_KF(true);           //Kalman filter not needed for the track finding, disabling KF saves a lot of initialization time
   reco->setInputTy(SQReco::E1039);     //options are SQReco::E906 and SQReco::E1039
@@ -300,8 +286,8 @@ int Fun4Sim(const int nevent = 10)
   //reco->add_eval_list(1);             //include station-2 in eval tree for debugging
   se->registerSubsystem(reco);
 
-  // VertexFit* vertexing = new VertexFit();
-  // se->registerSubsystem(vertexing);
+  SQVertexing* vtx = new SQVertexing();
+  se->registerSubsystem(vtx);
 
   //// Trim minor data nodes (to reduce the DST file size)
   //se->registerSubsystem(new SimDstTrimmer());
@@ -322,7 +308,7 @@ int Fun4Sim(const int nevent = 10)
   // Output
   ///////////////////////////////////////////
 
-  // DST output manager, tunred off to save disk by default
+  // DST output manager
   Fun4AllDstOutputManager *out = new Fun4AllDstOutputManager("DSTOUT", "DST.root");
   se->registerOutputManager(out);
 
@@ -332,13 +318,15 @@ int Fun4Sim(const int nevent = 10)
   //  se->registerOutputManager(out);
   //}
 
-  se->run(nevent);
+  const bool count_only_good_events = true;
+  se->run(nevent, count_only_good_events);
 
   PHGeomUtility::ExportGeomtry(se->topNode(),"geom.root");
   
   // finish job - close and save output files
   se->End();
   se->PrintTimer();
+  rc->WriteToFile("recoConsts.tsv");
   std::cout << "All done" << std::endl;
 
   // cleanup - delete the server and exit

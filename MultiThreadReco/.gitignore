@@ -1,0 +1,9 @@
+build
+inst
+scratch
+*.png
+*.root
+work/out/
+work/log/
+
+src/kTThreads/

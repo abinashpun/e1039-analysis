@@ -1,10 +1,10 @@
 # TargetSim
 
-The instructions below are for **seaquestgpvm01.fnal.gov** where the **seaquest-offline** libraries are compiled at **/e906/app/users/yuhw/install**.
+The instructions below are for **seaquestgpvm01.fnal.gov** where the **seaquest-offline** libraries are compiled at **/exp/seaquest/app/users/yuhw/install**.
 
 ## setup environment
 ```
-source /e906/app/users/yuhw/setup.sh
+source /exp/seaquest/app/users/yuhw/setup.sh
 ```
 
 ## check out analysis repository

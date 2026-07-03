@@ -8,7 +8,7 @@ where the E1039 packages are ready to use.
 
 You can just execute the following command to set up the environment properly;
 ```
-source /e906/app/software/osg/software/e1039/this-e1039.sh
+source /exp/seaquest/app/software/osg/software/e1039/this-e1039.sh
 ```
 You have to do so when you start a new shell environment (i.e. text terminal).
 

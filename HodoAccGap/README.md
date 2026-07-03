@@ -30,7 +30,7 @@ The 'ana.C' is an example macro for analysis.
 You may test it using the example data.
 
 ```
-ln -s /e906/app/users/yuhw/seaquest-analysis/HodoAccGap/300cm/*.root .
+ln -s /exp/seaquest/app/users/yuhw/seaquest-analysis/HodoAccGap/300cm/*.root .
 
 root -l
 root [0] .L ana.C 

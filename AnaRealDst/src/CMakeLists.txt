@@ -1,6 +1,5 @@
-# Setup the project
 cmake_minimum_required(VERSION 2.6 FATAL_ERROR)
-project(ana_real_dst CXX)
+project(AnaRealDst CXX)
 
 file(GLOB          sources ${PROJECT_SOURCE_DIR}/*.cc)
 file(GLOB     dist_headers ${PROJECT_SOURCE_DIR}/*.h)
@@ -9,12 +8,11 @@ list(REMOVE_ITEM dist_headers ${non_dist_headers})
 
 # ROOT dict generation
 add_custom_command (
-  OUTPUT ana_real_dst_Dict.cc
+  OUTPUT AnaRealDst_Dict.cc
   COMMAND rootcint
-  ARGS -f ana_real_dst_Dict.cc -c
-    -I$ENV{OFFLINE_MAIN}/include/ -I${ROOT_PREFIX}/include/
-    ${dist_headers}
-    ${PROJECT_SOURCE_DIR}/LinkDef.h
+  ARGS -f AnaRealDst_Dict.cc -noIncludePaths -inlineInputHeader -c -p
+    -I${PROJECT_SOURCE_DIR} -I${ROOT_PREFIX}/include
+    ${dist_headers}  ${PROJECT_SOURCE_DIR}/LinkDef.h
   DEPENDS ${dist_headers} ${PROJECT_SOURCE_DIR}/LinkDef.h
 )
 
@@ -29,19 +27,14 @@ execute_process(COMMAND root-config --prefix OUTPUT_VARIABLE ROOT_PREFIX  OUTPUT
 execute_process(COMMAND root-config --cflags OUTPUT_VARIABLE ROOT_CFLAGS  OUTPUT_STRIP_TRAILING_WHITESPACE)
 execute_process(COMMAND root-config --libs   OUTPUT_VARIABLE ROOT_LINK    OUTPUT_STRIP_TRAILING_WHITESPACE)
 
-#include_directories("${PROJECT_SOURCE_DIR}/" "$ENV{MY_INSTALL}/include/" "$ENV{OFFLINE_MAIN}/include/")
-#link_directories("./" "$ENV{MY_INSTALL}/lib/" "$ENV{OFFLINE_MAIN}/lib/")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall ${ROOT_CFLAGS}")
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -std=c++11 -I$ENV{OFFLINE_MAIN}/include/ ${ROOT_CFLAGS}")
+add_library(AnaRealDst SHARED ${sources} AnaRealDst_Dict.cc)
+target_link_libraries(AnaRealDst  fun4all interface_main geom_svc decoder_maindaq)
+install(TARGETS AnaRealDst DESTINATION ${CMAKE_INSTALL_PREFIX}/lib)
 
-add_library(ana_real_dst SHARED ${sources} ana_real_dst_Dict.cc)
-target_link_libraries(ana_real_dst -L$ENV{OFFLINE_MAIN}/lib fun4all interface_main geom_svc decoder_maindaq)
-install(TARGETS ana_real_dst DESTINATION ${CMAKE_INSTALL_PREFIX}/lib)
+install(FILES ${dist_headers} DESTINATION ${CMAKE_INSTALL_PREFIX}/include)
 
-# Install the pcm files in case of ROOT 6.
-execute_process(COMMAND root-config --version OUTPUT_VARIABLE ROOT_VER)
-string(SUBSTRING ${ROOT_VER} 0 1 ROOT_VER)
-if (ROOT_VER GREATER 5)
-   add_custom_target(install_pcm ALL COMMAND mkdir -p ${CMAKE_INSTALL_PREFIX}/lib COMMAND cp -up *_rdict.pcm ${CMAKE_INSTALL_PREFIX}/lib)
-   add_dependencies(install_pcm ana_real_dst)
-endif()
+# Install the pcm files
+add_custom_target(install_pcm ALL COMMAND mkdir -p ${CMAKE_INSTALL_PREFIX}/lib COMMAND cp -up *_rdict.pcm ${CMAKE_INSTALL_PREFIX}/lib)
+add_dependencies(install_pcm AnaRealDst)

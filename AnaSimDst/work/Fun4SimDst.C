@@ -1,30 +1,34 @@
 /// Fun4SimDst.C:  Fun4all macro to analyze the E1039 simulated DST files.
-#if ROOT_VERSION_CODE >= ROOT_VERSION(6,00,0)
 R__LOAD_LIBRARY(libana_sim_dst)
-#endif
 
 int Fun4SimDst(const int   n_dst_ana=0,
                const char* fn_list_dst="list_dst.txt",
                const char* fn_udst="uDST.root")
 {
-  gSystem->Load("libana_sim_dst.so");
-
   Fun4AllServer* se = Fun4AllServer::instance();
   //se->Verbosity(1);
   Fun4AllInputManager *in = new Fun4AllDstInputManager("SimDst");
   se->registerInputManager(in);
 
+  se->registerSubsystem(new AnaSimRunInfo());
+
+  /// Use these modules to debug simulation events.
+  //se->registerSubsystem(new TraceHepMCParticle());
+  //se->registerSubsystem(new TracePHG4Particle());
+  //se->registerSubsystem(new AnaSimHit());
+
   //se->registerSubsystem(new FilterSimEvent());
 
   Fun4AllDstOutputManager *out = new Fun4AllDstOutputManager("DSTOUT", fn_udst);
   se->registerOutputManager(out);
-  out->AddNode("SQHitVector");
   out->AddNode("SQEvent");
-  out->AddNode("SRecEvent");
+  out->AddNode("SQHitVector");
   out->AddNode("SQMCEvent");
   out->AddNode("SQTruthTrackVector");
   out->AddNode("SQTruthDimuonVector");
-
+  out->AddNode("SQRecTrackVector"); // Or "SRecEvent"
+  out->AddNode("SQRecDimuonVector_PM"); // Or "SRecEvent"
+  
   vector<string> list_dst;
   string fn_dst;
   ifstream ifs(fn_list_dst);
@@ -44,5 +48,5 @@ int Fun4SimDst(const int   n_dst_ana=0,
 
   se->End();
   delete se;
-  return 0;
+  exit(0);// return 0;
 }
